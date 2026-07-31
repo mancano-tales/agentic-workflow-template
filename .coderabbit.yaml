@@ -1,0 +1,71 @@
+# =============================================================================
+# .coderabbit.yaml — configuração da revisão automática (CodeRabbit)
+# =============================================================================
+#
+# POR QUE ESTE ARQUIVO EXISTE
+#
+# Em 2026-07-31 apurou-se que, dos quatro PRs abertos neste ecossistema em
+# 2026-07-30/31, apenas UM foi revisado — e era o único que permanecera aberto.
+# Os três que entraram sem revisão eram justamente os que alteravam a
+# infraestrutura de enforcement: `validate-governance.R`, os hooks e o
+# `sync-skills`. O risco ficou exatamente invertido: o que muda a trava passou
+# direto; o que muda a instrução foi esquadrinhado.
+#
+# Duas causas, ambas endereçadas aqui:
+#
+#   1. O PR #4 recebeu "Review skipped — Auto reviews are disabled on
+#      base/target branches other than the default branch". A chave
+#      `reviews.auto_review.base_branches` abaixo cobre também as branches de
+#      auditoria pós-merge, cujo alvo por construção NÃO é a default.
+#
+#   2. Não havia `.coderabbit.yaml` em nenhum repositório do ecossistema: toda
+#      a configuração vivia na UI — não versionada, não auditável e sem
+#      histórico de quem mudou o quê. Isso contradiz o princípio de
+#      policy-as-code deste template (ver PRINCIPLES.md §1): configuração que
+#      decide se um PR é revisado é política, e política mora no repositório.
+#
+# Este arquivo é validado pelo próprio CodeRabbit, que comenta no PR se alguma
+# chave estiver incorreta — o que o torna auto-verificável.
+#
+# Referência: https://docs.coderabbit.ai/guides/configure-coderabbit
+# =============================================================================
+
+language: pt-BR
+
+reviews:
+  # `chill` reporta o que importa sem exigir mudança formal a cada apontamento.
+  # A alternativa (`assertive`) gera ruído em repositório majoritariamente de
+  # documentação e governança, que é o caso aqui.
+  profile: chill
+
+  # Não converter achados em "Request changes" bloqueante: o merge é decisão do
+  # autor humano (ver a pré-autorização de fluxo por PR no CLAUDE.md da raiz do
+  # ecossistema, 2026-07-31). O revisor informa; quem decide é o autor.
+  request_changes_workflow: false
+
+  high_level_summary: true
+
+  # Mantém a mensagem de status no PR. Foi exatamente essa mensagem que revelou
+  # o "Review skipped" do PR #4 — sem ela, a lacuna teria passado despercebida.
+  review_status: true
+
+  poem: false
+
+  auto_review:
+    enabled: true
+
+    # Drafts não são revisados: PR em rascunho ainda está sendo escrito.
+    drafts: false
+
+    # `main` é a default. As demais existem para o fluxo de auditoria pós-merge:
+    # como PR mergeado não pode ser reaberto no GitHub, a forma não destrutiva
+    # de fazer o revisor olhar código já mergeado é abrir um PR de `main` PARA
+    # uma branch de baseline criada no commit anterior ao merge. Esse PR tem
+    # base não-default por construção, e sem a linha abaixo seria pulado — que
+    # é precisamente o modo de falha que este arquivo existe para corrigir.
+    base_branches:
+      - main
+      - "audit/.*"
+
+chat:
+  auto_reply: true
