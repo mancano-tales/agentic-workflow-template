@@ -124,12 +124,23 @@ parsed$category <- ifelse(
 # `!` no cabeçalho marca breaking change — vira seção própria.
 parsed$category[grepl("^[a-z]+(\\([^)]*\\))?!:", parsed$subject)] <- "Breaking"
 
+# DETERMINISMO: o cabeçalho NÃO carrega a hora da geração.
+#
+# Enquanto a saída ia para stdout, `Sys.time()` era inofensivo. Desde que o
+# CHANGELOG.md passou a ser versionado (2026-07-31), deixou de ser: regenerar
+# sem nenhuma mudança no histórico produzia um diff, apenas porque o relógio
+# andou. Um artefato derivado tem de ser função exclusiva da sua entrada — caso
+# contrário `git diff` deixa de responder "algo mudou?" e passa a responder
+# "alguém rodou o script?".
+#
+# O carimbo é o do commit mais recente incluído, que vem do próprio `git log`:
+# informa a mesma coisa de útil (até onde o changelog cobre) e é estável.
 lines <- c(
   "# CHANGELOG (derivado)",
   "",
   paste0(
-    "Gerado por `tools/render-changelog.R` em ",
-    format(Sys.time(), "%Y-%m-%d %H:%M"), "."
+    "Derivado do `git log` por `tools/render-changelog.R`. ",
+    "Commit mais recente incluído: ", max(parsed$date), "."
   ),
   "",
   "Arquivo DERIVADO do `git log`. Não edite à mão — a fonte editorial é o `NEWS.md`,",

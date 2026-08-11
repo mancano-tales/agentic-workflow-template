@@ -4,6 +4,10 @@
 
 Este repositório adota um **modelo profissional de desenvolvimento cooperativo Humano-IA de nível industrial**. Ele foi projetado para permitir que agentes de IA autônomos (como Claude Code, Cursor, Antigravity, Aider) trabalhem de forma segura e sincronizada com desenvolvedores humanos, eliminando regressões de código, duplicidade de logs e perda de contexto.
 
+> 📐 **O que você está adotando**: [PRINCIPLES.md](PRINCIPLES.md) reúne os oito princípios deste template — policy-as-code, transparência, reprodutibilidade, Keep a Changelog 1.1.0 com rastreabilidade derivada, Conventional Commits, arquivamento dos logs de LLM, plano antes de execução, e "uma peça, um dono" — com a falha medida que originou cada um. Este README explica *como instalar*; aquele documento explica *o quê* e *por quê*.
+>
+> 📋 **Convenções adotadas**: [Conventional Commits 1.0.0](https://www.conventionalcommits.org/) nas mensagens de commit e [Keep a Changelog 1.1.0](https://keepachangelog.com/) no changelog — encaixadas uma na outra, ver Seção 5.
+
 ---
 
 ## 1. Setup Rápido (Configuração de Links de IA)
@@ -51,7 +55,9 @@ Isso criará o link de junção para a pasta `.agents/` (Gemini/Antigravity), in
 ├── AGENTS.md                        # ARQUIVO REAL E ÚNICO: contexto do projeto, regras, tech stack
 ├── CLAUDE.md                        # Ponteiro de uma linha (@AGENTS.md) — não edite
 ├── GUIDANCE.md                      # Atalho para o sitemap completo de diretrizes
-├── NEWS.md                          # Changelog de decisões de design e evolução (atualizado por commits)
+├── PRINCIPLES.md                    # Os 8 princípios do template e a falha que originou cada um
+├── NEWS.md                          # Changelog EDITORIAL: decisões e raciocínio, escrito à mão, sem hashes
+├── CHANGELOG.md                     # Changelog DERIVADO do git log (hash + timestamp) — não edite à mão
 └── README.md                        # Este documento (Visão geral de instalação e execução)
 ```
 
@@ -76,4 +82,37 @@ Eles já são ativados automaticamente ao rodar o Setup Rápido (Seção 1). Se 
     ```bash
     git config core.hooksPath hooks
     ```
+
+---
+
+## 5. Convenções de Commit e Changelog
+
+Duas convenções abertas, adotadas porque **encaixam uma na outra**: [Conventional Commits 1.0.0](https://www.conventionalcommits.org/) e [Keep a Changelog 1.1.0](https://keepachangelog.com/). O Conventional Commits exige um **tipo vindo de lista fechada** em cada mensagem, e é isso que permite traduzir cada commit mecanicamente para uma categoria do Keep a Changelog. Sem tipo obrigatório, não há tradução — e o changelog volta a ser escrito à mão.
+
+### Três artefatos, três perguntas
+
+| Artefato | Responde | Curadoria | Editar à mão? |
+|---|---|---|---|
+| `git log` | *O que exatamente mudou, quando, por quem?* | nenhuma — registra tudo | n/a |
+| [CHANGELOG.md](CHANGELOG.md) | *O que mudou que me afeta, por tipo?* | automática | **não** — é derivado |
+| [NEWS.md](NEWS.md) | *Por que mudou? O que se descartou?* | humana, editorial | **sim** — só assim existe |
+
+O `git log` tem o **fato**; o `CHANGELOG.md` tem o fato **organizado para o leitor**; o `NEWS.md` tem a **razão** — e a razão não é derivável de nada. Nenhuma ferramenta extrai de um diff qual alternativa foi rejeitada ou qual incidente motivou a mudança.
+
+### Tradução tipo → categoria
+
+| Tipo do commit | Categoria |
+|---|---|
+| `feat` | `Added` |
+| `fix`, `perf` | `Fixed` |
+| `refactor`, `style`, `docs`, `build`, `ci`, `chore`, `test`, `revert` | `Changed` |
+| `!` no cabeçalho (ex.: `feat(api)!:`) | `Breaking` — sobrepõe-se ao tipo |
+
+Para regenerar o changelog derivado:
+
+```bash
+Rscript tools/render-changelog.R --output CHANGELOG.md
+```
+
+A geração é **determinística**: rodar duas vezes sem mudança no histórico produz arquivos idênticos. O raciocínio completo — por que o hash não é escrito à mão, por que `Deprecated`/`Removed`/`Security` não são emitidas — está em [PRINCIPLES.md](PRINCIPLES.md) §4 e §5.
 

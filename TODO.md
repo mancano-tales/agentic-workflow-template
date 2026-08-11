@@ -6,6 +6,14 @@
 
 ## Pendente
 
+- [ ] Documentar referências, inspirações e diferenciais do template frente a projetos similares e padrões de governança
+  - Criado: 2026-07-31 10:43 por Antigravity (Gemini 3.6 Flash) (a pedido de Tales Mançano)
+  - Criar documento/seção de referência no repositório detalhando origens, dependências conceituais e diferenciais em relação a outros projetos:
+    - **Conventional Commits 1.0.0**: especificação e repositório oficial (`conventional-commits/conventionalcommits.org`)
+    - **Keep a Changelog 1.1.0**: especificação por Olivier Lacan (`olivierlacan/keep-a-changelog`)
+    - **Governança de Agentes de IA (mgaldino)**: repositórios e iniciativas de workflow agêntico de Manoel Galdino (`mgaldino`)
+    - **Governança de Agentes de IA (Microsoft)**: `microsoft/agent-governance-toolkit`, diretrizes de governança de agentes de IA e ecossistema da Microsoft
+
 - [ ] Propagar WP1/WP2 (fim dos hard links) aos outros 11 repositórios
   - Criado: 2026-07-29 15:36 por Claude Opus 5 (a pedido de Tales Mançano)
   - Feito **só neste repositório** em 2026-07-29: `AGENTS.md` virou o arquivo real e único, `CLAUDE.md` virou `@AGENTS.md`, `.github/copilot-instructions.md` e `.cursor/rules/` deletados, self-heal removido do validador

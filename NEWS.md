@@ -3,6 +3,72 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-07-31 11:13 — Por que Conventional Commits e Keep a Changelog são a mesma decisão
+
+A pedido do autor, documentado no `PRINCIPLES.md` §4/§5 e numa nova Seção 5 do `README.md`.
+
+**As duas convenções não são escolhas independentes — encaixam uma na outra.** O Conventional Commits exige um **tipo vindo de lista fechada** em toda mensagem; é exatamente isso que permite traduzir cada commit mecanicamente para uma categoria do Keep a Changelog. Sem tipo obrigatório não há tradução, e sem tradução o changelog volta a ser escrito à mão — com toda a divergência que o §4 descreve. A tabela de tradução (`feat`→`Added`, `fix`/`perf`→`Fixed`, os demais→`Changed`, `!`→`Breaking` sobrepondo-se ao tipo) passa a estar explícita nos dois documentos, em vez de existir apenas dentro do `render-changelog.R`.
+
+**A distinção entre os três artefatos, que faltava.** Cada um responde a uma pergunta que os outros dois não respondem:
+
+- **`git log`** tem o **fato** — completo, mecânico, um registro por commit, incluindo os triviais. Fonte dos hashes, e ilegível como narrativa.
+- **`CHANGELOG.md`** tem o fato **organizado para o leitor** — uma projeção do `git log`, reagrupada por categoria. Não acrescenta informação; por isso pode ser gerado, e por isso editá-lo à mão cria uma segunda verdade que vai divergir.
+- **`NEWS.md`** tem a **razão** — e a razão não é derivável de nada. Nenhuma ferramenta extrai de um diff qual alternativa foi cogitada e rejeitada, ou qual incidente motivou a mudança. Um commit `fix(export): sanitiza caminhos absolutos` diz o que foi feito; só o `NEWS.md` diz que aquilo nasceu de um log reprovado com 108 ocorrências pelo validador do próprio repositório.
+
+A consequência que justifica a trava: **os dois primeiros se perdem se a ferramenta falhar; o `NEWS.md` se perde se ninguém escrever.** É o único dos três inteiramente dependente de disciplina — e é por isso que o co-commit é mecânico, não recomendação.
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-07-31 11:13 (Horário de Brasília)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "docs(conventions): explica o encaixe entre commits e changelog"
+- **Arquivos afetados**: `PRINCIPLES.md`, `README.md`, `NEWS.md`
+
+## 2026-07-31 10:43 — Registro de pendência para mapear referências, inspirações e diferenciais do template
+
+A pedido do autor. Adicionada pendência no `TODO.md` para criar uma seção/documento de referência detalhando as origens conceituais, inspirações e diferenciais do template frente a outros projetos e padrões de governança:
+- **Conventional Commits 1.0.0** (`conventional-commits/conventionalcommits.org`)
+- **Keep a Changelog 1.1.0** (`olivierlacan/keep-a-changelog`)
+- **Governança de Agentes de IA (Manoel Galdino)** (`mgaldino`)
+- **Governança de Agentes de IA (Microsoft)** (`microsoft/agent-governance-toolkit`, AutoGen, AI Agent Governance)
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-07-31 10:43 (Horário de Brasília)
+- **Agente**: Antigravity / Gemini 3.6 Flash / Antigravity CLI
+- **Mensagem do Commit**: "docs(todo): pendencia de mapeamento de referencias e inspiracoes"
+- **Arquivos afetados**: `TODO.md`, `NEWS.md`
+
+## 2026-07-31 09:57 — `CHANGELOG.md` derivado passa a ser versionado, e a geração vira determinística
+
+**Decisão do autor.** A convenção adotada tem nome — **Keep a Changelog 1.1.0** — e passa a ser implementada em dois arquivos com papéis distintos: `NEWS.md` é a fonte **editorial**, escrita à mão, com decisão e raciocínio, sem hashes e nunca reescrita; `CHANGELOG.md` é **derivado** do `git log` por `render-changelog.R`, com hash e timestamp ISO-8601, regenerável e nunca editado à mão. Primeira geração: 34 entradas.
+
+Isso resolve uma ambiguidade herdada da issue #1. Ela pedia rastreabilidade fina no formato `- **[a1b2c3d]** 2026-07-30 15:45 — Descrição`, e a rodada de 2026-07-30 22:45 recusou **apenas o hash escrito à mão**, por ser ponto fixo — mas ao parar aí deixou a impressão de que a rastreabilidade inteira tinha sido abandonada. Não tinha: só mudou de lugar. Versionando o `CHANGELOG.md`, o artefato que a issue #1 pedia passa a existir, no formato que ela pedia, visível para quem apenas navega o repositório — sem o laço impossível e sem os commits de backfill. O que se perdeu foi um campo copiado à mão que só podia divergir; o que se ganhou é a mesma informação como projeção de fonte única.
+
+**Geração determinística — achado da revisão automática.** O cabeçalho gravava `Sys.time()`. Enquanto a saída ia para stdout isso era inofensivo; a partir do momento em que o arquivo é versionado, deixou de ser: **regenerar sem nenhuma mudança no histórico produzia um diff**, apenas porque o relógio andou. Um artefato derivado tem de ser função exclusiva da sua entrada — caso contrário `git diff` deixa de responder "algo mudou?" e passa a responder "alguém rodou o script?". O carimbo passa a ser o do commit mais recente incluído, que vem do próprio `git log`: informa a mesma coisa útil (até onde o changelog cobre) e é estável.
+
+**Categorias documentadas passam a bater com as emitidas** — outro achado da revisão. O `PRINCIPLES.md` listava as seis do padrão; o renderer emite quatro (`Breaking`, `Added`, `Fixed`, `Changed`). `Deprecated`, `Removed` e `Security` **não são emitidas** porque nenhum tipo de Conventional Commit mapeia para elas sem adivinhação — `revert` não é remoção, e não há tipo para depreciação ou segurança. Inferi-las produziria classificação errada com aparência de precisão. Seguem disponíveis no `NEWS.md`, onde um humano as escolhe deliberadamente.
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-07-31 09:57 (Horário de Brasília)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "fix(changelog): torna a geracao deterministica e alinha as categorias"
+- **Arquivos afetados**: `CHANGELOG.md`, `tools/render-changelog.R`, `PRINCIPLES.md`, `README.md`, `NEWS.md`
+
+## 2026-07-31 09:34 — `PRINCIPLES.md`: os princípios do template, reunidos e com a origem de cada um
+
+A pedido do autor. Até aqui os princípios existiam **dispersos** — parte no `AGENTS.md`, parte implícita nas travas do validador, parte só recuperável lendo entradas antigas deste `NEWS.md`. Quem adotava o template recebia as regras sem a razão delas, e razão ausente é regra que o primeiro atrito descarta.
+
+Oito princípios, cada um ancorado na falha que o originou: **policy-as-code** (prosa não é superfície de controle; falso bloqueio é problema de segurança), **transparência** (passo pulado e declarado é aceitável, pulado em silêncio corrompe a auditoria), **reprodutibilidade** (nenhum caminho absoluto; nada específico de projeto dentro de artefato compartilhado; cópia em vez de link), **changelog intelectual**, **Conventional Commits**, **arquivamento dos logs de LLM**, **plano antes de execução** e **uma peça, um dono**.
+
+**Escolha de nome de arquivo, a confirmar com o autor**: `PRINCIPLES.md` e não `README.md`, porque o `README.md` deste repositório está redigido como README **do consumidor** (abre em `# [NOME DO SEU PROJETO]`, com placeholders a preencher por quem adota). O mesmo arquivo não consegue ser o README do template e o README que o template entrega. Alternativa, se o autor preferir: promover este documento a `README.md` e renomear o atual para `README.template.md`.
+
+O documento registra também, sem maquiar, uma **questão em aberto**: a `close-task` pode ser tornada agnóstica ao repositório, mas invoca `validate-governance.R` e `export_conversa.R`, que vivem aqui — um agente pode resolver o diretório certo e entregá-lo a ferramentas que o descartam em silêncio. A fronteira entre `skills` e este template, como está desenhada, corta no meio de um problema único.
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-07-31 09:34 (Horário de Brasília)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "docs(principles): reune os principios do template e sua origem"
+- **Arquivos afetados**: `PRINCIPLES.md`, `README.md`, `NEWS.md`
+
 ## 2026-07-30 22:45 — Co-commit do NEWS.md, hook commit-msg e o fim do hash escrito à mão (issue #1)
 
 Rodada motivada por uma auditoria adversária das travas do consumidor `cem-usp/edupol`, que revelou tanto lacunas deste template quanto uma regra de governança impossível de cumprir.
