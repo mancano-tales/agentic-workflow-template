@@ -52,6 +52,24 @@ A pedido do autor. Adicionada pendência no `TODO.md` para criar uma seção/doc
 - **Mensagem do Commit**: "docs(todo): pendencia de mapeamento de referencias e inspiracoes"
 - **Arquivos afetados**: `TODO.md`, `NEWS.md`
 
+## 2026-07-31 10:05 — `.coderabbit.yaml` versionado: a configuração de revisão vira policy-as-code
+
+**O achado que motiva.** Dos quatro PRs abertos neste ecossistema em 2026-07-30/31, **apenas um foi revisado — e era o único que permanecera aberto**. Os três mergeados sem revisão eram justamente os que alteravam a infraestrutura de enforcement: o `validate-governance.R` (+136 linhas), os hooks `commit-msg`/`pre-commit` e o `render-changelog.R` neste repositório; e o `sync-skills.ps1`/`.sh` mais a remoção do `tools/.skills-source` no repositório `skills`. O risco ficou exatamente invertido: **o que muda a trava passou direto; o que muda a instrução foi esquadrinhado.**
+
+**Duas causas, ambas endereçadas.** O PR #4 recebeu a mensagem *"Review skipped — Auto reviews are disabled on base/target branches other than the default branch"*. E os outros dois nem mensagem receberam: foram criados antes de o app estar ativo e mergeados minutos depois. Nenhum repositório do ecossistema tinha `.coderabbit.yaml` — **toda a configuração vivia na UI**, não versionada, não auditável, sem histórico de quem mudou o quê.
+
+Isso contradizia frontalmente o princípio de policy-as-code deste template: **a configuração que decide se um PR é revisado é política, e política mora no repositório.** Uma regra que só existe num painel web tem o mesmo status epistêmico de uma regra escrita em prosa — é intenção, não controle.
+
+**A chave que importa** é `reviews.auto_review.base_branches`, que inclui `audit/.*` além de `main`. Como PR mergeado **não pode ser reaberto** no GitHub, a forma não destrutiva de submeter código já mergeado à revisão é abrir um PR de `main` **para** uma branch de baseline criada no commit anterior ao merge. Esse PR tem base não-default por construção — e sem essa linha seria pulado, que é precisamente o modo de falha que este arquivo existe para corrigir.
+
+`request_changes_workflow` fica `false`: o revisor informa, mas o merge é decisão do autor humano, coerente com a pré-autorização de fluxo por PR adotada no ecossistema nesta mesma data. O arquivo é validado pelo próprio CodeRabbit, que comenta no PR se alguma chave estiver incorreta — é auto-verificável.
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-07-31 10:05 (Horário de Brasília)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "chore(review): versiona .coderabbit.yaml e cobre branches de auditoria"
+- **Arquivos afetados**: `.coderabbit.yaml`, `NEWS.md`
+
 ## 2026-07-31 09:57 — `CHANGELOG.md` derivado passa a ser versionado, e a geração vira determinística
 
 **Decisão do autor.** A convenção adotada tem nome — **Keep a Changelog 1.1.0** — e passa a ser implementada em dois arquivos com papéis distintos: `NEWS.md` é a fonte **editorial**, escrita à mão, com decisão e raciocínio, sem hashes e nunca reescrita; `CHANGELOG.md` é **derivado** do `git log` por `render-changelog.R`, com hash e timestamp ISO-8601, regenerável e nunca editado à mão. Primeira geração: 34 entradas.
