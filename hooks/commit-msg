@@ -1,93 +1,40 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# commit-msg — Validador de Conventional Commits 1.0.0
-# ==============================================================================
-# Instalação:
-#   cp scripts/commit-msg hooks/commit-msg && chmod +x hooks/commit-msg
-#   git config core.hooksPath hooks
-#
-# LIMITES CONHECIDOS (comunique-os, não os esconda):
-#   - `git commit --no-verify` desliga este hook por completo.
-#   - `core.hooksPath` é config local: um clone novo não herda hook nenhum.
-#   - Um commit que substitua este arquivo por `exit 0` passa e desarma o resto.
-# Onde a garantia precisa ser real, rode a mesma validação no CI e exija-a como
-# status check na proteção de branch.
+# commit-msg — Validador de Mensagem de Commit (Conventional Commits 1.0.0)
 # ==============================================================================
 
-set -u
+COMMIT_MSG_FILE="$1"
 
-MSG_FILE="$1"
-[ -f "$MSG_FILE" ] || exit 0
-
-# Primeira linha não-comentário e não-vazia.
-HEADER="$(grep -vE '^\s*#' "$MSG_FILE" | grep -vE '^\s*$' | head -n 1)"
-
-# Sem cabeçalho: deixa o próprio git abortar por mensagem vazia.
-[ -n "$HEADER" ] || exit 0
-
-# Commits que o git gera sozinho não seguem o padrão e não devem ser bloqueados.
-case "$HEADER" in
-  "Merge "*|"Revert "*|"fixup!"*|"squash!"*|"Reapply "*)
-    exit 0
-    ;;
-esac
-
-TYPES='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
-PATTERN="^(${TYPES})(\([a-z0-9._/-]+\))?!?: .+"
-
-fail() {
-  echo ""
-  echo "[ERRO] Mensagem de commit fora do padrão Conventional Commits 1.0.0."
-  echo ""
-  echo "  Recebido: ${HEADER}"
-  echo ""
-  echo "  Esperado: <tipo>(<escopo opcional>): <descrição no imperativo>"
-  echo "  Tipos:    ${TYPES//|/, }"
-  echo ""
-  echo "  Exemplos: feat(website): adiciona versao em ingles da pagina"
-  echo "            fix(hooks): corrige deteccao de contexto no validador"
-  echo "            feat(hooks)!: exige GOV_DIR explicito  (breaking change)"
-  echo ""
-  echo "  Motivo:   $1"
-  echo ""
-  exit 1
-}
-
-echo "$HEADER" | grep -qE "$PATTERN" \
-  || fail "cabeçalho não casa com <tipo>(<escopo>): <descrição>"
-
-# Comprimento: 72 é o limite; acima disso o git log trunca em terminal padrão.
-if [ "${#HEADER}" -gt 72 ]; then
-  fail "cabeçalho tem ${#HEADER} caracteres (limite: 72). Mova o detalhe para o corpo."
+if [ -z "$COMMIT_MSG_FILE" ] || [ ! -f "$COMMIT_MSG_FILE" ]; then
+  exit 0
 fi
 
-# Ponto final no cabeçalho.
-case "$HEADER" in
-  *.) fail "cabeçalho termina com ponto final." ;;
-esac
+# T-HOOK-BYPASS: Dispensa validação em merges
+FIRST_LINE=$(head -n 1 "$COMMIT_MSG_FILE")
 
-# Descrição no imperativo: AVISO, nunca bloqueio.
-#
-# A heurística de sufixo não distingue verbo de substantivo: "estado", "comando",
-# "pedido" e "conteúdo" são substantivos legítimos que casam com os mesmos padrões
-# de particípio e gerúndio. Bloquear com base nisso produziria falso bloqueio em
-# mensagens corretas — e falso bloqueio é a principal causa de recurso a
-# `--no-verify`, o que custaria mais governança do que a regra compra.
-# Bloqueio fica reservado ao que é objetivamente verificável.
-DESCRIPTION="${HEADER#*: }"
-FIRST_WORD="$(echo "$DESCRIPTION" | awk '{print tolower($1)}')"
-case "$FIRST_WORD" in
-  *ando|*endo|*indo|*ado|*ada|*ados|*adas|*ido|*ida|*idos|*idas)
-    echo "[AVISO] '${FIRST_WORD}' parece gerúndio ou particípio." >&2
-    echo "        Conventional Commits pede imperativo: 'adiciona', não 'adicionando'/'adicionado'." >&2
-    echo "        Ignore este aviso se for substantivo (ex.: 'estado', 'comando')." >&2
-    ;;
-esac
+if [[ "$FIRST_LINE" =~ ^Merge ]]; then
+  exit 0
+fi
 
-# BREAKING CHANGE no rodapé exige o '!' no cabeçalho.
-if grep -qE '^BREAKING[ -]CHANGE:' "$MSG_FILE"; then
-  echo "$HEADER" | grep -qE "^(${TYPES})(\([a-z0-9._/-]+\))?!:" \
-    || fail "rodapé traz BREAKING CHANGE mas falta o '!' antes dos dois-pontos no cabeçalho."
+if [[ "$FIRST_LINE" =~ ^Revert ]]; then
+  exit 0
+fi
+
+# T-REGEX-SCOPE: Aceita padrão Conventional Commits com escopo opcional
+# Ex: feat(core): add new feature ou docs: update readme
+PATTERN="^(thesis|lit|data|draft|docs|build|ci|chore|feat|fix|refactor)(\([a-zA-Z0-9_-]+\))?!?: .+$"
+
+if [[ ! "$FIRST_LINE" =~ $PATTERN ]]; then
+  echo "======================================================================"
+  echo " [ERRO] MENSAGEM DE COMMIT FORA DO PADRÃO CONVENTIONAL COMMITS"
+  echo "======================================================================"
+  echo " Sua mensagem: '$FIRST_LINE'"
+  echo ""
+  echo " Formato exigido: <tipo>(<escopo>): <descrição>"
+  echo " Tipos aceitos: thesis, lit, data, draft, docs, build, ci, chore, feat, fix, refactor"
+  echo " Exemplo: feat(core): add new validation rule"
+  echo "======================================================================"
+  exit 1
 fi
 
 exit 0

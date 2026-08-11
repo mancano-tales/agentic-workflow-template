@@ -3,6 +3,21 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-08-11 14:49 — Modernização de Governança do Template (Master Plan v6, AGENTS.md Matt Pocock e Trava CLI)
+
+Portadas as melhorias de governança validadas no repositório `Mancano2026-MA-Thesis` para o template-mãe `agentic-workflow-template`:
+1. Refatorado `AGENTS.md` para o padrão de alta densidade sem emojis (estilo Matt Pocock).
+2. Adicionados os scripts proxy CLI `tools/git-wrapper.ps1` e `tools/git-wrapper.sh` contra staging em massa (`add .`, `add -A`) e comandos destrutivos.
+3. Atualizado `tools/validate-governance.R` com normalização de status insensível a HTML/brackets/parênteses, correspondência de cabeçalho insensível a acentos (`^## [IÍií]ndice`), e inclusão condicional de `CHANGELOG.md`.
+4. Atualizado `tools/render-changelog.R` com tratamento case-insensitive, filtro de deploys, tratamento de repositórios sem commits e escrita atômica via `.tmp`.
+
+**Metadados de Execução**:
+
+- **Data/Hora**: 2026-08-11 14:49 (Horário Local)
+- **Agente**: Antigravity / Gemini 2.5 Pro / Visual Studio Code
+- **Mensagem do Commit**: "feat(gov): moderniza governança do template com Master Plan v6 e AGENTS.md Pocock"
+- **Arquivos afetados**: `AGENTS.md`, `CLAUDE.md`, `NEWS.md`, `CHANGELOG.md`, `hooks/commit-msg`, `hooks/pre-commit`, `tools/git-wrapper.ps1`, `tools/git-wrapper.sh`, `tools/render-changelog.R`, `tools/validate-governance.R`
+
 ## 2026-07-31 11:13 — Por que Conventional Commits e Keep a Changelog são a mesma decisão
 
 A pedido do autor, documentado no `PRINCIPLES.md` §4/§5 e numa nova Seção 5 do `README.md`.

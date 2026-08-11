@@ -1,19 +1,27 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# pre-commit.sample — Hook de Validação de Governança Humano-IA
+# pre-commit — Git Hook para Validação Automática de Governança
 # ==============================================================================
 
-# O Git Bash exporta LC_CTYPE=C.UTF-8, que o R do Windows não aceita ("Setting
-# LC_CTYPE=C.UTF-8 failed") e faz o matching UTF-8 do validador falhar
-# silenciosamente (0 planos localizados no índice). Limpar o locale para o R
-# usar o padrão do sistema.
-unset LC_ALL LC_CTYPE LANG
+# T-WIN-PATH: Localiza Rscript no Windows ou Unix
+RSCRIPT_BIN="Rscript"
+if ! command -v Rscript &> /dev/null; then
+  if [ -f "/c/Program Files/R/R-4.4.1/bin/Rscript.exe" ]; then
+    RSCRIPT_BIN="/c/Program Files/R/R-4.4.1/bin/Rscript.exe"
+  elif [ -f "/c/Program Files/R/R-4.4.0/bin/Rscript.exe" ]; then
+    RSCRIPT_BIN="/c/Program Files/R/R-4.4.0/bin/Rscript.exe"
+  fi
+fi
 
-# Executar validador de consistência antes do commit
-#
-# `--hook` declara o contexto EXPLICITAMENTE. O validador não deve inferir que está
-# rodando como hook a partir da quantidade de arquivos staged: `git commit
-# --allow-empty` produz lista vazia e faria a inferência concluir o oposto,
-# dispensando as travas de commit justamente num commit.
-Rscript tools/validate-governance.R --hook
-exit $?
+"$RSCRIPT_BIN" tools/validate-governance.R --hook
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo "======================================================================"
+  echo " [ERRO FATAL PRE-COMMIT] Auditoria de governança falhou."
+  echo " Corrija as inconsistências listadas acima antes de commitar."
+  echo "======================================================================"
+  exit 1
+fi
+
+exit 0

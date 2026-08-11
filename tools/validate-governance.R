@@ -337,16 +337,23 @@ YAML_CONVENTION_DATE <- "2026-07-09"
 STATUS_KEYWORDS <- c("EM EXECUÇÃO", "CONCLUÍDO", "SUPERADO", "HISTÓRICO", "PARCIAL", "ATIVO")
 
 # Normaliza uma célula de status do índice extraindo a palavra-chave inicial.
-# Robusto a negrito e a anotações com parênteses aninhados:
+# Robusto a negrito, HTML, colchetes e a anotações com parênteses aninhados:
 # "**CONCLUÍDO** (2026-07-12; ver NEWS 2026-07-11 (2))" -> "CONCLUÍDO"
 normalize_status <- function(x) {
   x <- trimws(gsub("\\*", "", x))
+  x <- gsub("<[^>]+>", "", x)
+  x <- gsub("[\\[\\]]", "", x)
+  x_clean <- trimws(gsub("\\s*\\(.*$", "", x))
+  if (grepl("^EM EXECU", x_clean, ignore.case = TRUE)) return("EM EXECUÇÃO")
+  if (grepl("^CONCLU", x_clean, ignore.case = TRUE)) return("CONCLUÍDO")
+  if (grepl("^SUPERAD", x_clean, ignore.case = TRUE)) return("SUPERADO")
+  if (grepl("^HIST", x_clean, ignore.case = TRUE)) return("HISTÓRICO")
+  if (grepl("^PARCIAL", x_clean, ignore.case = TRUE)) return("PARCIAL")
+  if (grepl("^ATIVO", x_clean, ignore.case = TRUE)) return("ATIVO")
   for (kw in STATUS_KEYWORDS) {
-    if (startsWith(x, kw)) {
-      return(kw)
-    }
+    if (startsWith(x_clean, kw)) return(kw)
   }
-  x
+  x_clean
 }
 
 # Data YYYY-MM-DD no prefixo do nome do arquivo, ou NA se não houver
@@ -689,7 +696,7 @@ check_abs_path_in_added_lines <- function(files, label) {
 # desta implementação). Confirmado por grep que o arquivo não contém nenhum
 # caminho absoluto real fora desses dois casos.
 rq_files <- staged_files[grepl("\\.(R|qmd)$", staged_files, ignore.case = TRUE) &
-  staged_files != "tools/validate-governance.R"]
+  !staged_files %in% c("tools/validate-governance.R", "tools/render-changelog.R")]
 
 if (length(rq_files) > 0) {
   cat_info(sprintf(
@@ -717,6 +724,9 @@ GOVERNANCE_DOCS <- c(
   paste0(GOV_DIR, "/plan/README.md"),
   paste0(GOV_DIR, "/llm-reviews/README.md")
 )
+if (file.exists("CHANGELOG.md")) {
+  GOVERNANCE_DOCS <- c(GOVERNANCE_DOCS, "CHANGELOG.md")
+}
 gov_files <- staged_files[staged_files %in% GOVERNANCE_DOCS]
 
 if (length(gov_files) > 0) {
@@ -1052,7 +1062,8 @@ if (any(grepl("^<<<<<<<", plan_index_lines))) {
 in_indice_section <- FALSE
 table_lines <- c()
 for (line in plan_index_lines) {
-  if (grepl("^## Índice", line)) {
+  if (grepl("^## .*([IÍií]ndice|Index)", line, ignore.case = TRUE, useBytes = TRUE) ||
+      grepl("<!-- BEGIN_PLAN_INDEX -->", line, fixed = TRUE, useBytes = TRUE)) {
     in_indice_section <- TRUE
     next
   }
@@ -1166,7 +1177,7 @@ for (plan_file in names(indexed_plans)) {
     # negrito e a anotações com parênteses aninhados)
     norm_index_status <- normalize_status(index_status)
 
-    if (yaml_status != norm_index_status) {
+    if (normalize_status(yaml_status) != normalize_status(index_status)) {
       cat_error(sprintf(
         "Divergência de status no plano '%s': YAML diz '%s' e README.md diz '%s'",
         plan_file, yaml_status, index_status
