@@ -2,52 +2,66 @@
 # ==============================================================================
 # git-wrapper.sh — Interceptador CLI e Trava Anti-Destrutiva do Git (Bash)
 # ==============================================================================
+#
+# Escopo: uso INTERATIVO por humanos que escolhem chamar o wrapper.
+# Para agentes, a trava que de fato interpõe é o hook PreToolUse em
+# `.claude/settings.json`, que chama `tools/guard-git-command.sh` antes do
+# Bash executar — um agente chama `git` direto e nunca passaria por aqui.
+# Os dois cobrem o mesmo conjunto de comandos; mantenha-os em sincronia.
+# ==============================================================================
 
 if [ $# -eq 0 ]; then
   exec git
 fi
 
-FIRST_ARG="$1"
+recusar() {
+  echo "======================================================================"
+  echo "[ERRO FATAL T-GIT-WRAPPER] $1"
+  echo ""
+  echo "$2"
+  echo "======================================================================"
+  exit 1
+}
 
-if [ "$FIRST_ARG" = "add" ]; then
-  for arg in "$@"; do
-    if [ "$arg" = "." ] || [ "$arg" = "-A" ] || [ "$arg" = "--all" ] || [ "$arg" = "*" ]; then
-      echo "======================================================================"
-      echo "[ERRO FATAL T-GIT-WRAPPER] STAGING EM MASSA PROIBIDO!"
-      echo "Comandos como 'git add .', 'git add -A' ou 'git add *' sao estritamente proibidos."
-      echo "Use staging cirurgico especificando cada arquivo:"
-      echo "  git add caminho/do/arquivo.ext"
-      echo "======================================================================"
-      exit 1
-    fi
-  done
-fi
+# Junta os argumentos para permitir casamento por padrão, e não por igualdade
+# exata: a revisão do PR #12 mostrou que comparar cada arg contra "-fd"/"-f"
+# deixava passar `git clean -fdx`, que é a forma mais destrutiva do comando.
+ARGS="$*"
+SUB="$1"
 
-if [ "$FIRST_ARG" = "reset" ]; then
-  for arg in "$@"; do
-    if [ "$arg" = "--hard" ]; then
-      echo "[ERRO FATAL T-GIT-WRAPPER] 'git reset --hard' e um comando destrutivo e proibido."
-      exit 1
+case "$SUB" in
+  add)
+    # `-u` faz stage de todos os rastreados: é staging em massa ainda que
+    # não pareça. Estava fora da versão original desta trava.
+    if echo "$ARGS" | grep -qE '(^|[[:space:]])((-[A-Za-z]*[Au])|--all|\.|\*|:/)([[:space:]]|$)'; then
+      recusar "Staging em massa proibido." \
+        "Use staging cirurgico, um arquivo por vez: git add caminho/do/arquivo.ext"
     fi
-  done
-fi
-
-if [ "$FIRST_ARG" = "clean" ]; then
-  for arg in "$@"; do
-    if [ "$arg" = "-fd" ] || [ "$arg" = "-f" ]; then
-      echo "[ERRO FATAL T-GIT-WRAPPER] 'git clean' em massa e proibido."
-      exit 1
+    ;;
+  reset)
+    if echo "$ARGS" | grep -qE -- '--hard'; then
+      recusar "'git reset --hard' descarta trabalho nao comitado." \
+        "Prefira 'git stash' ou reverta arquivos especificos."
     fi
-  done
-fi
-
-if [ "$FIRST_ARG" = "restore" ]; then
-  for arg in "$@"; do
-    if [ "$arg" = "." ]; then
-      echo "[ERRO FATAL T-GIT-WRAPPER] 'git restore .' e proibido."
-      exit 1
+    ;;
+  clean)
+    if echo "$ARGS" | grep -qE '([[:space:]]-[A-Za-z]*f|--force)'; then
+      recusar "'git clean' com -f apaga arquivos nao rastreados." \
+        "Rode 'git clean -n' primeiro para ver o que seria apagado."
     fi
-  done
-fi
+    ;;
+  restore|checkout)
+    if echo "$ARGS" | grep -qE '(^|[[:space:]])(\.|:/)([[:space:]]|$)'; then
+      recusar "Descarte em massa de alteracoes no working tree." \
+        "Restaure arquivos especificos: git restore caminho/do/arquivo.ext"
+    fi
+    ;;
+  push)
+    if echo "$ARGS" | grep -qE '([[:space:]]-[A-Za-z]*f|--force)'; then
+      recusar "Force-push reescreve historico ja publicado." \
+        "Se for mesmo necessario, o autor humano deve autorizar e executar manualmente."
+    fi
+    ;;
+esac
 
 exec git "$@"

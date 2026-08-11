@@ -3,13 +3,24 @@
 # pre-commit — Git Hook para Validação Automática de Governança
 # ==============================================================================
 
-# T-WIN-PATH: Localiza Rscript no Windows ou Unix
+# O Git Bash exporta LC_CTYPE=C.UTF-8, que o R do Windows não aceita
+# ("Setting LC_CTYPE=C.UTF-8 failed"). Historicamente isso fazia o matching
+# UTF-8 do validador falhar SILENCIOSAMENTE (0 planos localizados no índice).
+# O sintoma não reproduz em toda combinação de R/locale — na verificação de
+# 2026-08-11 o validador achou os 6 planos com e sem o unset — mas o aviso
+# continua sendo emitido e a guarda custa uma linha. Não remova sem antes
+# reproduzir a ausência do problema no ambiente-alvo.
+unset LC_ALL LC_CTYPE LANG
+
+# T-WIN-PATH: Localiza Rscript no Windows ou Unix.
+# Sem versão fixa no caminho: este é um template público e travar em
+# "R-4.4.1"/"R-4.4.0" quebra em qualquer outra instalação (R 4.5 não seria
+# encontrado). Procura a instalação mais recente disponível.
 RSCRIPT_BIN="Rscript"
 if ! command -v Rscript &> /dev/null; then
-  if [ -f "/c/Program Files/R/R-4.4.1/bin/Rscript.exe" ]; then
-    RSCRIPT_BIN="/c/Program Files/R/R-4.4.1/bin/Rscript.exe"
-  elif [ -f "/c/Program Files/R/R-4.4.0/bin/Rscript.exe" ]; then
-    RSCRIPT_BIN="/c/Program Files/R/R-4.4.0/bin/Rscript.exe"
+  CANDIDATO=$(ls -d /c/Program\ Files/R/R-*/bin/Rscript.exe 2>/dev/null | sort -V | tail -n 1)
+  if [ -n "$CANDIDATO" ] && [ -f "$CANDIDATO" ]; then
+    RSCRIPT_BIN="$CANDIDATO"
   fi
 fi
 

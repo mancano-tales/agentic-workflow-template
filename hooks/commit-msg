@@ -22,7 +22,14 @@ fi
 
 # T-REGEX-SCOPE: Aceita padrão Conventional Commits com escopo opcional
 # Ex: feat(core): add new feature ou docs: update readme
-PATTERN="^(thesis|lit|data|draft|docs|build|ci|chore|feat|fix|refactor)(\([a-zA-Z0-9_-]+\))?!?: .+$"
+#
+# `merge` e `revert` estão na lista porque o bypass acima só pega as mensagens
+# PADRÃO do git ("Merge branch...", "Revert ...") e este repositório usa as
+# formas com escopo: `merge(governance):`, `revert(governance):`. Medido na
+# revisão do PR #12 — sem esses dois tipos, 3 dos 36 commits recentes da
+# própria `main` seriam rejeitados por este hook.
+TIPOS="thesis|lit|data|draft|docs|build|ci|chore|feat|fix|refactor|merge|revert|perf|test|style"
+PATTERN="^($TIPOS)(\([a-zA-Z0-9_-]+\))?!?: .+$"
 
 if [[ ! "$FIRST_LINE" =~ $PATTERN ]]; then
   echo "======================================================================"
@@ -31,7 +38,7 @@ if [[ ! "$FIRST_LINE" =~ $PATTERN ]]; then
   echo " Sua mensagem: '$FIRST_LINE'"
   echo ""
   echo " Formato exigido: <tipo>(<escopo>): <descrição>"
-  echo " Tipos aceitos: thesis, lit, data, draft, docs, build, ci, chore, feat, fix, refactor"
+  echo " Tipos aceitos: $(echo "$TIPOS" | tr '|' ' ')"
   echo " Exemplo: feat(core): add new validation rule"
   echo "======================================================================"
   exit 1

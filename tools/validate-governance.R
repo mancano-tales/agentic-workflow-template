@@ -344,14 +344,28 @@ normalize_status <- function(x) {
   x <- gsub("<[^>]+>", "", x)
   x <- gsub("[\\[\\]]", "", x)
   x_clean <- trimws(gsub("\\s*\\(.*$", "", x))
-  if (grepl("^EM EXECU", x_clean, ignore.case = TRUE)) return("EM EXECUÇÃO")
-  if (grepl("^CONCLU", x_clean, ignore.case = TRUE)) return("CONCLUÍDO")
-  if (grepl("^SUPERAD", x_clean, ignore.case = TRUE)) return("SUPERADO")
-  if (grepl("^HIST", x_clean, ignore.case = TRUE)) return("HISTÓRICO")
-  if (grepl("^PARCIAL", x_clean, ignore.case = TRUE)) return("PARCIAL")
-  if (grepl("^ATIVO", x_clean, ignore.case = TRUE)) return("ATIVO")
+  if (grepl("^EM EXECU", x_clean, ignore.case = TRUE)) {
+    return("EM EXECUÇÃO")
+  }
+  if (grepl("^CONCLU", x_clean, ignore.case = TRUE)) {
+    return("CONCLUÍDO")
+  }
+  if (grepl("^SUPERAD", x_clean, ignore.case = TRUE)) {
+    return("SUPERADO")
+  }
+  if (grepl("^HIST", x_clean, ignore.case = TRUE)) {
+    return("HISTÓRICO")
+  }
+  if (grepl("^PARCIAL", x_clean, ignore.case = TRUE)) {
+    return("PARCIAL")
+  }
+  if (grepl("^ATIVO", x_clean, ignore.case = TRUE)) {
+    return("ATIVO")
+  }
   for (kw in STATUS_KEYWORDS) {
-    if (startsWith(x_clean, kw)) return(kw)
+    if (startsWith(x_clean, kw)) {
+      return(kw)
+    }
   }
   x_clean
 }
@@ -763,7 +777,8 @@ if (is_hook_run && file.exists(file.path(CWD, "NEWS.md"))) {
   is_merge <- local({
     out <- suppressWarnings(tryCatch(
       system2("git", c("rev-parse", "-q", "--verify", "MERGE_HEAD"),
-              stdout = TRUE, stderr = FALSE),
+        stdout = TRUE, stderr = FALSE
+      ),
       error = function(e) character(0)
     ))
     status <- attr(out, "status")
@@ -829,8 +844,10 @@ if (is_hook_run && file.exists(file.path(CWD, "NEWS.md"))) {
       if (!has_entry && !has_header && prose_chars < MIN_PROSE_CHARS) {
         cat_error("Commit BLOQUEADO: as linhas novas do 'NEWS.md' não formam uma entrada de changelog.")
         cat_info("Esperado um item de lista com data ISO-8601, um cabeçalho de seção,")
-        cat_info(sprintf("ou prosa substantiva (mínimo %d caracteres; recebido %d).",
-                         MIN_PROSE_CHARS, prose_chars))
+        cat_info(sprintf(
+          "ou prosa substantiva (mínimo %d caracteres; recebido %d).",
+          MIN_PROSE_CHARS, prose_chars
+        ))
         cat_info("Exemplo: - **2026-07-30 15:45** — Descrição da mudança e do porquê.")
         errors_found <- TRUE
       }
@@ -1063,7 +1080,7 @@ in_indice_section <- FALSE
 table_lines <- c()
 for (line in plan_index_lines) {
   if (grepl("^## .*([IÍií]ndice|Index)", line, ignore.case = TRUE, useBytes = TRUE) ||
-      grepl("<!-- BEGIN_PLAN_INDEX -->", line, fixed = TRUE, useBytes = TRUE)) {
+    grepl("<!-- BEGIN_PLAN_INDEX -->", line, fixed = TRUE, useBytes = TRUE)) {
     in_indice_section <- TRUE
     next
   }
@@ -1173,10 +1190,10 @@ for (plan_file in names(indexed_plans)) {
     yaml_status <- trimws(yaml_data$status)
     index_status <- indexed_plans[[plan_file]]
 
-    # Normalizar o status do índice: extrai a palavra-chave inicial (robusto a
-    # negrito e a anotações com parênteses aninhados)
-    norm_index_status <- normalize_status(index_status)
-
+    # Normalizar os DOIS lados: extrai a palavra-chave inicial (robusto a
+    # negrito, HTML, colchetes e anotações com parênteses aninhados). Antes o
+    # YAML era comparado cru contra o índice normalizado, o que acusava
+    # divergência falsa quando o YAML trazia qualquer decoração.
     if (normalize_status(yaml_status) != normalize_status(index_status)) {
       cat_error(sprintf(
         "Divergência de status no plano '%s': YAML diz '%s' e README.md diz '%s'",

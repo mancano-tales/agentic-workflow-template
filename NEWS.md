@@ -3,6 +3,40 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-08-11 20:08 — Correções da revisão do PR #12: a trava passa a interpor de fato
+
+Revisão do PR #12 antes do merge, a pedido do autor. Sete achados, todos corrigidos nesta rodada. Os três primeiros são de substância.
+
+**1. `AGENTS.md` havia perdido a seção que as skills consomem.** A redução de 157 para 48 linhas (padrão Pocock, "mapa e não sermão") levou junto a tabela **"Configuração de Skills"** — com as chaves `diretorio_governanca` e `script_exportar_conversa`. Mas as 4 skills de governança continuam usando a convenção `{gov}` (5 ocorrências só em `close-task`), e é essa tabela que a define: a referência ficava solta. A tabela foi restaurada em forma compacta, com aviso explícito de que removê-la quebra as skills. A redução do resto do arquivo foi mantida — configuração que tem consumidor não é sermão.
+
+**2. A trava de git não estava interposta.** `tools/git-wrapper.sh|ps1` só protege quem *escolhe* chamar o wrapper; um agente chama `git` direto. A única referência aos wrappers em todo o repositório era uma linha descritiva no `AGENTS.md`. Era policy-as-code que funcionava como documentação. Criado `tools/guard-git-command.sh`, ligado como hook **`PreToolUse`** em `.claude/settings.json` — roda antes do Bash executar, que é onde a proibição deixa de ser pedido e vira impedimento. Casa o padrão contra o payload cru (não há `jq` no ambiente e parsear JSON em bash quebra em aspas escapadas); falha fechado por construção.
+
+**3. Lacunas de cobertura, medidas.** O casamento por igualdade exata deixava passar as formas combinadas:
+
+| Comando | Antes | Agora |
+|---|---|---|
+| `git clean -fdx` | passava | bloqueado |
+| `git add -u` | passava | bloqueado |
+| `git push --force` | não coberto | bloqueado |
+
+Verificado nos dois wrappers e no guard: 8 formas destrutivas bloqueadas, 7 comandos legítimos (`git add -p`, `git clean -n`, `git checkout main`…) passam sem falso positivo.
+
+**4. O `commit-msg` rejeitaria a convenção do próprio repositório.** Rodado contra os 36 commits recentes da `main`: 3 seriam rejeitados, incluindo `merge(governance):` e `revert(governance):` — o bypass só pega `Merge`/`Revert` nus, que são as mensagens padrão do git, não as formas com escopo que o projeto usa. Adicionados `merge`, `revert`, `perf`, `test` e `style`. Agora só o commit inicial é rejeitado, e é histórico.
+
+**5. Caminhos travados por versão no `pre-commit`.** `/c/Program Files/R/R-4.4.1/` e `R-4.4.0` estavam fixos: num template **público com adotante externo**, R 4.5 não seria encontrado. Trocado por busca da instalação mais recente disponível.
+
+**6. Guarda de locale restaurada.** O `unset LC_ALL LC_CTYPE LANG` havia sido removido sem justificativa. **Não reproduzi a falha** que ele previne — o validador achou os 6 planos com e sem o unset — mas o aviso `Setting LC_CTYPE=C.UTF-8 failed` continua sendo emitido e a guarda custa uma linha. Restaurada com nota pedindo reprodução empírica antes de qualquer remoção futura.
+
+**7. Código morto.** `norm_index_status` era atribuído e nunca usado, resíduo da refatoração que passou a normalizar os dois lados da comparação.
+
+**Incidente desta rodada, registrado porque a lição é o ponto.** Ao testar o wrapper PowerShell **antes** de corrigir o bug do parâmetro `$Args` — que fazia `Test-ShortFlag` receber vazio e a trava nunca disparar — o `git clean -fdx` do teste passou pela trava quebrada e **executou de verdade**, apagando os arquivos não rastreados do repositório de trabalho, inclusive a primeira versão do próprio `guard-git-command.sh`. Nada rastreado foi perdido e os arquivos foram recriados. A lição está agora no cabeçalho do guard: **comando destrutivo se testa em diretório descartável, nunca no repositório em uso**. Serve também como demonstração do achado 2 — trava que não interpõe, ou que interpõe errado, não vale nada.
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-08-11 20:08 (Horário de Brasília)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "fix(gov): corrige os sete achados da revisao do PR #12"
+- **Arquivos afetados**: `AGENTS.md`, `hooks/pre-commit`, `hooks/commit-msg`, `tools/guard-git-command.sh`, `tools/git-wrapper.sh`, `tools/git-wrapper.ps1`, `tools/validate-governance.R`, `.claude/settings.json`, `NEWS.md`
+
 ## 2026-08-11 14:49 — Modernização de Governança do Template (Master Plan v6, AGENTS.md Matt Pocock e Trava CLI)
 
 Portadas as melhorias de governança validadas no repositório `Mancano2026-MA-Thesis` para o template-mãe `agentic-workflow-template`:
