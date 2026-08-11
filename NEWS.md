@@ -3,6 +3,29 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-08-11 20:41 — Achados do CodeRabbit no PR #12: taxonomia unica e dispensa por linha
+
+Segunda rodada de revisao do PR #12, desta vez pelo CodeRabbit. Nove achados; os quatro de substancia foram corrigidos. Um deles **contradiz e melhora** a conclusao da revisao manual anterior.
+
+**1. A excecao ao T1 era larga demais.** Na revisao manual eu havia concluido que excluir `tools/render-changelog.R` da checagem de caminho absoluto era legitimo, porque o arquivo contem `C:/Users/...` como padrao de sanitizacao. Conclusao errada: excluir o arquivo inteiro faz qualquer caminho absoluto **real** adicionado a ele no futuro passar batido — a excecao deixa de cobrir o caso conhecido e passa a cobrir todos os futuros.
+
+Substituida por um **escape hatch por linha**: uma linha terminada em `# nolint: abs-path` e dispensada; o resto do arquivo continua escaneado. A dispensa fica nomeada e greppavel (`grep -rn "nolint: abs-path"`), portanto auditavel, em vez de invisivel dentro de uma lista de exclusao. Verificado: a linha marcada e dispensada e uma linha com caminho absoluto real no mesmo arquivo continua sendo pega.
+
+**2. Taxonomia do changelog: quatro documentos, tres contratos.** `PRINCIPLES.md` e `README.md` concordam entre si — `feat`→`Added`, `fix`/`perf`→`Fixed`, o resto→`Changed`, quatro categorias. O `render-changelog.R` divergia em tres pontos: emitia `Documentation` e `Build`, categorias que a especificacao nao tem, e mandava `perf` para `Changed`. O contrato documentado era literalmente inalcancavel. A documentacao e a fonte canonica (dois documentos independentes concordando); o codigo foi alinhado a ela e o `CHANGELOG.md` regenerado — 42 entradas, agora so `Added`/`Fixed`/`Changed`.
+
+**3. `--sync` reescrevia a linha a cada execucao.** Comparava o indice normalizado contra o YAML cru: qualquer decoracao ou variacao de caixa no YAML (`concluido` vs `CONCLUIDO`) marcava divergencia falsa. Passa a normalizar os dois lados, como ja fazia a checagem de divergencia.
+
+**4. Emojis contra a propria Regra 6.** A v6 introduziu a proibicao de emojis em documentos de governanca e codigo, e o `README.md` e o `render-changelog.R` os continham. Removidos.
+
+O CodeRabbit tambem apontou, de forma independente, a lacuna do `git clean` com flags agrupadas — ja corrigida na rodada anterior. Convergencia entre revisor humano-assistido e automatico no mesmo defeito.
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-08-11 20:41 (Horario de Brasilia)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "fix(gov): trata os achados do CodeRabbit no PR #12"
+- **Arquivos afetados**: `AGENTS.md`, `README.md`, `CHANGELOG.md`, `tools/validate-governance.R`, `tools/render-changelog.R`, `NEWS.md`
+- **Nota**: `styler::style_file()` aplicado ao `render-changelog.R` na mesma transacao. A trava exige `NEWS.md` co-commitado em toda alteracao de codigo, o que impede um commit de estilo isolado — o proprio validador recomenda isolar estilo, e as duas regras se contradizem. Registrado como pendencia.
+
 ## 2026-08-11 20:08 — Correções da revisão do PR #12: a trava passa a interpor de fato
 
 Revisão do PR #12 antes do merge, a pedido do autor. Sete achados, todos corrigidos nesta rodada. Os três primeiros são de substância.

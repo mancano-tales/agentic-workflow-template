@@ -4,9 +4,9 @@
 
 Este repositório adota um **modelo profissional de desenvolvimento cooperativo Humano-IA de nível industrial**. Ele foi projetado para permitir que agentes de IA autônomos (como Claude Code, Cursor, Antigravity, Aider) trabalhem de forma segura e sincronizada com desenvolvedores humanos, eliminando regressões de código, duplicidade de logs e perda de contexto.
 
-> 📐 **O que você está adotando**: [PRINCIPLES.md](PRINCIPLES.md) reúne os oito princípios deste template — policy-as-code, transparência, reprodutibilidade, Keep a Changelog 1.1.0 com rastreabilidade derivada, Conventional Commits, arquivamento dos logs de LLM, plano antes de execução, e "uma peça, um dono" — com a falha medida que originou cada um. Este README explica *como instalar*; aquele documento explica *o quê* e *por quê*.
+> **O que você está adotando**: [PRINCIPLES.md](PRINCIPLES.md) reúne os oito princípios deste template — policy-as-code, transparência, reprodutibilidade, Keep a Changelog 1.1.0 com rastreabilidade derivada, Conventional Commits, arquivamento dos logs de LLM, plano antes de execução, e "uma peça, um dono" — com a falha medida que originou cada um. Este README explica *como instalar*; aquele documento explica *o quê* e *por quê*.
 >
-> 📋 **Convenções adotadas**: [Conventional Commits 1.0.0](https://www.conventionalcommits.org/) nas mensagens de commit e [Keep a Changelog 1.1.0](https://keepachangelog.com/) no changelog — encaixadas uma na outra, ver Seção 5.
+> **Convenções adotadas**: [Conventional Commits 1.0.0](https://www.conventionalcommits.org/) nas mensagens de commit e [Keep a Changelog 1.1.0](https://keepachangelog.com/) no changelog — encaixadas uma na outra, ver Seção 5.
 
 ---
 

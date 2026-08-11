@@ -46,7 +46,7 @@
 | **Validar Governança** | `Rscript tools/validate-governance.R [--sync]` | Valida integridade (0 = PASS) |
 | **Gerar Changelog** | `Rscript tools/render-changelog.R` | Deriva `CHANGELOG.md` do git log |
 | **Exportar Conversa** | `Rscript tools/export_conversa.R <id> [slug]` | Salva sessão no diretório de governança |
-| **Sincronizar Skills** | `.\tools\sync-skills.ps1 [-Apply <skill|all>]` | Relatório ou aplicação de skills do template |
+| **Sincronizar Skills** | `.\tools\sync-skills.ps1 [-Apply <skill\|all>]` | Relatório ou aplicação de skills do template |
 
 ---
 

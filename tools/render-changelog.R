@@ -49,7 +49,7 @@ if (length(log_lines) == 0) {
   )
   if (!is.null(output_file)) {
     writeLines(header_lines, output_file, useBytes = TRUE)
-    cat(sprintf("ℹ CHANGELOG inicial gerado sem commits em '%s'.\n", output_file))
+    cat(sprintf("CHANGELOG inicial gerado sem commits em '%s'.\n", output_file))
   } else {
     cat(paste(header_lines, collapse = "\n"), "\n")
   }
@@ -70,7 +70,7 @@ if (length(log_lines) == 0) {
   )
   if (!is.null(output_file)) {
     writeLines(header_lines, output_file, useBytes = TRUE)
-    cat(sprintf("ℹ CHANGELOG filtrado gerado em '%s'.\n", output_file))
+    cat(sprintf("CHANGELOG filtrado gerado em '%s'.\n", output_file))
   } else {
     cat(paste(header_lines, collapse = "\n"), "\n")
   }
@@ -81,38 +81,50 @@ if (length(log_lines) == 0) {
 SEP <- "\x1f"
 parsed_rows <- lapply(log_lines, function(line) {
   parts <- strsplit(line, SEP, fixed = TRUE)[[1]]
-  if (length(parts) < 4) return(NULL)
+  if (length(parts) < 4) {
+    return(NULL)
+  }
   hash <- parts[1]
   author <- parts[2]
   date <- parts[3]
   subject <- paste(parts[4:length(parts)], collapse = SEP)
-  
-  # Sanitizar caminhos absolutos / locais do assunto
-  subject <- gsub("C:/Users/[A-Za-z0-9_-]+/[^ ]+", "[caminho-local]", subject)
-  subject <- gsub("MancanoSync/[^ ]+", "[caminho-local]", subject)
-  
+
+  # Sanitizar caminhos absolutos / locais do assunto.
+  # As duas linhas abaixo precisam conter o padrao literalmente para poder
+  # reconhece-lo, entao carregam o marcador de dispensa do T1. O resto do
+  # arquivo continua sendo escaneado normalmente.
+  subject <- gsub("C:/Users/[A-Za-z0-9_-]+/[^ ]+", "[caminho-local]", subject) # nolint: abs-path
+  subject <- gsub("MancanoSync/[^ ]+", "[caminho-local]", subject) # nolint: abs-path
+
   # Determinar categoria Conventional Commits
   type_match <- regmatches(subject, regexpr("^(?i)([a-z]+)", subject))
   type <- if (length(type_match) > 0) tolower(type_match[1]) else "other"
-  
+
+  # Taxonomia canonica: a tabela de PRINCIPLES.md e README.md, que concordam
+  # entre si. O codigo divergia dela em tres pontos — emitia "Documentation" e
+  # "Build", categorias que a especificacao nao tem, e mandava `perf` para
+  # "Changed" em vez de "Fixed" — tornando o contrato documentado inalcancavel
+  # (achado do CodeRabbit no PR #12). Ao alterar aqui, alinhe os dois
+  # documentos e regenere o CHANGELOG.md.
   category <- switch(type,
     "feat" = "Added",
     "fix" = "Fixed",
-    "docs" = "Documentation",
-    "build" = "Build",
-    "ci" = "Build",
+    "perf" = "Fixed",
     "refactor" = "Changed",
     "style" = "Changed",
-    "perf" = "Changed",
-    "test" = "Changed",
+    "docs" = "Changed",
+    "build" = "Changed",
+    "ci" = "Changed",
     "chore" = "Changed",
-    "Changed"
+    "test" = "Changed",
+    "revert" = "Changed",
+    "Changed" # fallback conservador para tipo nao reconhecido
   )
-  
+
   if (grepl("^(?i)[a-z]+(\\([^)]*\\))?!:", subject)) {
     category <- "Breaking"
   }
-  
+
   list(hash = hash, author = author, date = date, subject = subject, category = category)
 })
 
@@ -147,7 +159,9 @@ out_lines <- c(
   ""
 )
 
-cat_order <- c("Breaking", "Added", "Fixed", "Documentation", "Changed", "Build")
+# Quatro categorias, como especificado em PRINCIPLES.md e README.md.
+# "Deprecated", "Removed" e "Security" nao sao emitidas (ver PRINCIPLES.md §4).
+cat_order <- c("Breaking", "Added", "Fixed", "Changed")
 for (cat_name in cat_order) {
   sub_df <- df[df$category == cat_name, , drop = FALSE]
   if (nrow(sub_df) == 0) next
@@ -162,7 +176,7 @@ if (!is.null(output_file)) {
   tmp_file <- paste0(output_file, ".tmp")
   writeLines(out_lines, tmp_file, useBytes = TRUE)
   file.rename(tmp_file, output_file)
-  cat(sprintf("✅ [OK] %d entradas escritas em '%s'.\n", nrow(df), output_file))
+  cat(sprintf("[OK] %d entradas escritas em '%s'.\n", nrow(df), output_file))
 } else {
   cat(paste(out_lines, collapse = "\n"), "\n")
 }

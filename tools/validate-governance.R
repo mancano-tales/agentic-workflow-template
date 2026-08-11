@@ -455,7 +455,11 @@ if (should_sync) {
     yaml_status <- trimws(meta$status)
     index_status_cell <- if (length(parts) >= 3) parts[[3]] else ""
 
-    if (normalize_status(index_status_cell) == yaml_status) {
+    # Normalizar os DOIS lados. Comparar o índice normalizado contra o YAML
+    # cru fazia o --sync reescrever a linha a cada execução sempre que o YAML
+    # trouxesse qualquer decoração ou variação de caixa ("concluído" vs
+    # "CONCLUÍDO"), mesmo já estando em sincronia (achado do CodeRabbit).
+    if (normalize_status(index_status_cell) == normalize_status(yaml_status)) {
       out_rows <- c(out_rows, line) # já em sincronia: preservar anotações manuais
     } else {
       desc <- if (length(parts) >= 5 && nchar(trimws(parts[[5]])) > 0) {
@@ -681,10 +685,24 @@ ABS_PATH_REGEX <- r"{([A-Za-z]:[\\/]Users[\\/]|[\\/][Hh]ome[\\/]|[\\/][Uu]sers[\
 # Helper compartilhado por T1 e T5: varre linhas adicionadas de um conjunto
 # de arquivos staged em busca de caminho absoluto local, reportando até 5
 # ocorrências por arquivo.
+# Escape hatch por LINHA, nao por arquivo: uma linha terminada em
+# `# nolint: abs-path` e dispensada do T1/T5. Existe porque ha codigo cuja
+# funcao e justamente reconhecer caminho absoluto (os sanitizadores do
+# render-changelog.R) e que portanto precisa conter o padrao literalmente.
+#
+# Por que por linha e nao por arquivo: excluir o arquivo inteiro faz qualquer
+# caminho absoluto REAL adicionado a ele depois passar batido — a excecao
+# deixa de cobrir o caso conhecido e passa a cobrir todos os futuros. Sendo
+# nomeada e greppavel (`grep -rn "nolint: abs-path"`), a dispensa fica
+# auditavel em vez de invisivel. Achado do CodeRabbit no PR #12.
+NOLINT_ABS_PATH <- "#\\s*nolint:\\s*abs-path\\s*$"
+
 check_abs_path_in_added_lines <- function(files, label) {
   found_any <- FALSE
   for (f in files) {
     added_lines <- get_staged_added_lines(f)
+    if (length(added_lines) == 0) next
+    added_lines <- added_lines[!grepl(NOLINT_ABS_PATH, added_lines, useBytes = TRUE)]
     if (length(added_lines) == 0) next
     hits <- grepl(ABS_PATH_REGEX, added_lines, useBytes = TRUE) |
       grepl("MancanoSync/", added_lines, fixed = TRUE, useBytes = TRUE)
@@ -709,8 +727,12 @@ check_abs_path_in_added_lines <- function(files, label) {
 # violação (confirmado ao vivo: aconteceu na primeira tentativa de commit
 # desta implementação). Confirmado por grep que o arquivo não contém nenhum
 # caminho absoluto real fora desses dois casos.
+# `tools/render-changelog.R` NAO entra nesta lista: ele continua sendo
+# escaneado, e as duas linhas dos seus sanitizadores usam o marcador
+# `# nolint: abs-path`. Excluir o arquivo inteiro deixaria passar qualquer
+# caminho absoluto real adicionado a ele no futuro (achado do CodeRabbit).
 rq_files <- staged_files[grepl("\\.(R|qmd)$", staged_files, ignore.case = TRUE) &
-  !staged_files %in% c("tools/validate-governance.R", "tools/render-changelog.R")]
+  !staged_files %in% c("tools/validate-governance.R")]
 
 if (length(rq_files) > 0) {
   cat_info(sprintf(
