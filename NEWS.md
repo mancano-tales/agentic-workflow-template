@@ -3,6 +3,26 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-08-11 21:05 — Segunda rodada do CodeRabbit: o bypass por opcao global do git
+
+O CodeRabbit revisou as proprias correcoes da rodada anterior e encontrou um **bypass critico** que nem a revisao manual nem a primeira passada dele haviam pego.
+
+**`git -C /outro/repo clean -fdx` contornava as tres travas.** Guard e os dois wrappers identificavam o subcomando como o primeiro token depois de `git`. Como `-C`, `-c`, `--git-dir` e afins sao opcoes GLOBAIS que vem antes do subcomando, toda forma que as usasse passava batido — e `-C` e justamente a opcao que faz o comando agir sobre **outro repositorio**, que e o caso mais perigoso. Medido antes da correcao: 4 de 5 formas passavam.
+
+Detalhe que expoe a fragilidade do casamento por texto: `git --git-dir=/tmp/x/.git clean -fdx` era bloqueado, mas **pelo motivo errado** — a string `/tmp/x/.git clean` contem a substring `git clean`. Acertava por acidente.
+
+Corrigido nos tres pontos: o subcomando passa a ser procurado **depois** de zero ou mais opcoes globais. Verificado: 7 formas com opcao global bloqueadas, 6 formas diretas bloqueadas, 9 comandos legitimos (incluindo `git -C /outro status`) sem falso positivo.
+
+**Falha aberta na checagem de plano concluido.** A comparacao de status normalizava os dois lados, mas o teste `yaml_status == "CONCLUIDO"` logo abaixo usava o valor cru: um plano com `concluido` minusculo ou decorado pulava **silenciosamente** a verificacao de `relacionados` e do inventario de `llm-reviews`. Normalizado uma vez e reutilizado.
+
+**Contrato de data.** O `README.md` descrevia o `CHANGELOG.md` como "hash + timestamp", mas o renderer usa `--date=short` e emite so `YYYY-MM-DD`. Documentacao alinhada ao comportamento real.
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-08-11 21:05 (Horario de Brasilia)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "fix(gov): fecha o bypass por opcao global do git nas tres travas"
+- **Arquivos afetados**: `tools/guard-git-command.sh`, `tools/git-wrapper.sh`, `tools/git-wrapper.ps1`, `tools/validate-governance.R`, `README.md`, `NEWS.md`
+
 ## 2026-08-11 20:41 — Achados do CodeRabbit no PR #12: taxonomia unica e dispensa por linha
 
 Segunda rodada de revisao do PR #12, desta vez pelo CodeRabbit. Nove achados; os quatro de substancia foram corrigidos. Um deles **contradiz e melhora** a conclusao da revisao manual anterior.

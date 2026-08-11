@@ -1216,7 +1216,14 @@ for (plan_file in names(indexed_plans)) {
     # negrito, HTML, colchetes e anotações com parênteses aninhados). Antes o
     # YAML era comparado cru contra o índice normalizado, o que acusava
     # divergência falsa quando o YAML trazia qualquer decoração.
-    if (normalize_status(yaml_status) != normalize_status(index_status)) {
+    #
+    # Calculado UMA vez e reutilizado na checagem de conclusão abaixo: usar o
+    # valor cru ali fazia um YAML com `concluído` minúsculo ou decorado pular
+    # silenciosamente a verificação de `relacionados` e do inventário de
+    # llm-reviews — falha aberta (achado do CodeRabbit no PR #12).
+    yaml_status_norm <- normalize_status(yaml_status)
+
+    if (yaml_status_norm != normalize_status(index_status)) {
       cat_error(sprintf(
         "Divergência de status no plano '%s': YAML diz '%s' e README.md diz '%s'",
         plan_file, yaml_status, index_status
@@ -1227,7 +1234,7 @@ for (plan_file in names(indexed_plans)) {
     # 3.3. Verificar registro do log de conversa para planos CONCLUÍDOS
     # (só para planos pós-convenção; a exportação retroativa de sessões
     # antigas foi feita caso a caso — ver plano de 2026-07-12)
-    if (yaml_status == "CONCLUÍDO" && !is_legacy) {
+    if (yaml_status_norm == "CONCLUÍDO" && !is_legacy) {
       concluido_data <- yaml_data$concluido
       if (is.null(concluido_data) || concluido_data == "null" || concluido_data == "") {
         cat_warn(sprintf("Plano '%s' está CONCLUÍDO no YAML, mas a data 'concluido' está vazia ou nula.", plan_file))

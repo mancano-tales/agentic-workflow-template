@@ -32,8 +32,27 @@ function Deny-Command {
     exit 1
 }
 
-$firstArg = $GitArgs[0].ToLower()
-$rest = @($GitArgs | Select-Object -Skip 1)
+# O subcomando NAO e necessariamente o primeiro argumento: 'git -C /outro/repo
+# clean -fdx' e valido e destrutivo. Tratar $GitArgs[0] como subcomando fazia
+# toda forma com opcao global passar batido (achado do CodeRabbit no PR #12).
+$comValor = @("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env")
+$subIndex = -1
+$i = 0
+while ($i -lt $GitArgs.Count) {
+    $tok = $GitArgs[$i]
+    if ($comValor -contains $tok) { $i += 2; continue }        # opcao + valor
+    if ($tok -match "^--[a-z-]+=") { $i += 1; continue }        # valor embutido
+    if ($tok -like "-*") { $i += 1; continue }                  # booleana/global
+    $subIndex = $i; break
+}
+
+if ($subIndex -lt 0) {
+    git.exe @GitArgs
+    exit $LASTEXITCODE
+}
+
+$firstArg = $GitArgs[$subIndex].ToLower()
+$rest = @($GitArgs | Select-Object -Skip ($subIndex + 1))
 
 # Casa aglomerados de flags curtas (-fdx, -xdf) e nao apenas a forma exata:
 # a revisao do PR #12 mostrou que comparar contra '-fd'/'-f' deixava passar

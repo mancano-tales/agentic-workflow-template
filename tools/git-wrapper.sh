@@ -27,7 +27,28 @@ recusar() {
 # exata: a revisão do PR #12 mostrou que comparar cada arg contra "-fd"/"-f"
 # deixava passar `git clean -fdx`, que é a forma mais destrutiva do comando.
 ARGS="$*"
-SUB="$1"
+
+# O subcomando NÃO é necessariamente o primeiro argumento: `git -C /outro/repo
+# clean -fdx` é válido e destrutivo. Tratar `$1` como subcomando fazia toda
+# forma com opção global passar batido (achado do CodeRabbit no PR #12).
+# Percorre as opções globais até achar o subcomando de verdade.
+SUB=""
+i=1
+while [ $i -le $# ]; do
+  eval "tok=\${$i}"
+  case "$tok" in
+    -C|-c|--git-dir|--work-tree|--namespace|--exec-path|--config-env)
+      i=$((i + 2)); continue ;;                 # consome a opção e seu valor
+    --git-dir=*|--work-tree=*|--namespace=*|--exec-path=*|--config-env=*)
+      i=$((i + 1)); continue ;;                 # valor embutido no próprio token
+    -p|--paginate|--no-pager|--bare|--literal-pathspecs|--glob-pathspecs|--icase-pathspecs|--noglob-pathspecs|--no-optional-locks|--no-replace-objects)
+      i=$((i + 1)); continue ;;                 # booleana
+    -*)
+      i=$((i + 1)); continue ;;                 # outra global desconhecida: pula
+    *)
+      SUB="$tok"; break ;;
+  esac
+done
 
 case "$SUB" in
   add)
