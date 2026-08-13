@@ -3,6 +3,117 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-08-11 21:34 — Terceira rodada: a trava troca heuristica de texto por analise de tokens
+
+O CodeRabbit revisou a correcao anterior e mostrou que ela ainda era contornavel. O achado nao e mais um bypass isolado: e o **metodo** que estava errado.
+
+**Enumerar opcao global e corrida perdida.** A versao anterior listava as opcoes globais do git (`-C`, `-c`, `--git-dir`...) para achar o subcomando depois delas. Ficavam de fora `-P`, `--no-advice`, `--no-lazy-fetch`, caminho citado com espacos (`git -C "/tmp/repo com espaco" clean -fdx`) e continuacao de linha — e cada versao do git pode adicionar opcoes novas, o que faz a lista envelhecer sozinha.
+
+**A analise passou a ser por tokens** (`tools/guard-git-command.py`): o payload JSON e parseado, o comando tokenizado com respeito a aspas e continuacao, os segmentos separados nos operadores de shell, e o subcomando identificado depois de **qualquer** token iniciado por `-`. Opcao global futura fica coberta sem manutencao.
+
+**Ganho que nao era o objetivo: menos falso positivo.** A versao com regex casava contra o payload cru, entao bloqueava `git commit -m "fix: limpa o cache e faz reset --hard no mock"` e ate `grep -rn 'git add .' docs/` — comandos inofensivos que apenas mencionavam o padrao. Com tokens, os dois passam. Tokenizar fechou bypass **e** devolveu ergonomia.
+
+**Falha fechada preservada, e com escopo.** Se `git` aparece no comando e a tokenizacao falha (aspas desbalanceadas, por exemplo), bloqueia. Sem Python no ambiente, o `.sh` cai num fallback deliberadamente grosseiro que tambem bloqueia por precaucao, em vez de deixar passar. Comando que nao menciona `git` nunca e assunto da trava.
+
+Verificado: 10 formas antes contornaveis agora bloqueadas; 14 comandos legitimos passam. Acrescentados tambem `--update`, `--renormalize` e `--pathspec-from-file` como formas de selecao multipla, nos tres pontos.
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-08-11 21:34 (Horario de Brasilia)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "fix(gov): troca a heuristica da trava por analise de tokens"
+- **Arquivos afetados**: `tools/guard-git-command.py`, `tools/guard-git-command.sh`, `tools/git-wrapper.sh`, `tools/git-wrapper.ps1`, `NEWS.md`
+
+## 2026-08-11 21:05 — Segunda rodada do CodeRabbit: o bypass por opcao global do git
+
+O CodeRabbit revisou as proprias correcoes da rodada anterior e encontrou um **bypass critico** que nem a revisao manual nem a primeira passada dele haviam pego.
+
+**`git -C /outro/repo clean -fdx` contornava as tres travas.** Guard e os dois wrappers identificavam o subcomando como o primeiro token depois de `git`. Como `-C`, `-c`, `--git-dir` e afins sao opcoes GLOBAIS que vem antes do subcomando, toda forma que as usasse passava batido — e `-C` e justamente a opcao que faz o comando agir sobre **outro repositorio**, que e o caso mais perigoso. Medido antes da correcao: 4 de 5 formas passavam.
+
+Detalhe que expoe a fragilidade do casamento por texto: `git --git-dir=/tmp/x/.git clean -fdx` era bloqueado, mas **pelo motivo errado** — a string `/tmp/x/.git clean` contem a substring `git clean`. Acertava por acidente.
+
+Corrigido nos tres pontos: o subcomando passa a ser procurado **depois** de zero ou mais opcoes globais. Verificado: 7 formas com opcao global bloqueadas, 6 formas diretas bloqueadas, 9 comandos legitimos (incluindo `git -C /outro status`) sem falso positivo.
+
+**Falha aberta na checagem de plano concluido.** A comparacao de status normalizava os dois lados, mas o teste `yaml_status == "CONCLUIDO"` logo abaixo usava o valor cru: um plano com `concluido` minusculo ou decorado pulava **silenciosamente** a verificacao de `relacionados` e do inventario de `llm-reviews`. Normalizado uma vez e reutilizado.
+
+**Contrato de data.** O `README.md` descrevia o `CHANGELOG.md` como "hash + timestamp", mas o renderer usa `--date=short` e emite so `YYYY-MM-DD`. Documentacao alinhada ao comportamento real.
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-08-11 21:05 (Horario de Brasilia)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "fix(gov): fecha o bypass por opcao global do git nas tres travas"
+- **Arquivos afetados**: `tools/guard-git-command.sh`, `tools/git-wrapper.sh`, `tools/git-wrapper.ps1`, `tools/validate-governance.R`, `README.md`, `NEWS.md`
+
+## 2026-08-11 20:41 — Achados do CodeRabbit no PR #12: taxonomia unica e dispensa por linha
+
+Segunda rodada de revisao do PR #12, desta vez pelo CodeRabbit. Nove achados; os quatro de substancia foram corrigidos. Um deles **contradiz e melhora** a conclusao da revisao manual anterior.
+
+**1. A excecao ao T1 era larga demais.** Na revisao manual eu havia concluido que excluir `tools/render-changelog.R` da checagem de caminho absoluto era legitimo, porque o arquivo contem `C:/Users/...` como padrao de sanitizacao. Conclusao errada: excluir o arquivo inteiro faz qualquer caminho absoluto **real** adicionado a ele no futuro passar batido — a excecao deixa de cobrir o caso conhecido e passa a cobrir todos os futuros.
+
+Substituida por um **escape hatch por linha**: uma linha terminada em `# nolint: abs-path` e dispensada; o resto do arquivo continua escaneado. A dispensa fica nomeada e greppavel (`grep -rn "nolint: abs-path"`), portanto auditavel, em vez de invisivel dentro de uma lista de exclusao. Verificado: a linha marcada e dispensada e uma linha com caminho absoluto real no mesmo arquivo continua sendo pega.
+
+**2. Taxonomia do changelog: quatro documentos, tres contratos.** `PRINCIPLES.md` e `README.md` concordam entre si — `feat`→`Added`, `fix`/`perf`→`Fixed`, o resto→`Changed`, quatro categorias. O `render-changelog.R` divergia em tres pontos: emitia `Documentation` e `Build`, categorias que a especificacao nao tem, e mandava `perf` para `Changed`. O contrato documentado era literalmente inalcancavel. A documentacao e a fonte canonica (dois documentos independentes concordando); o codigo foi alinhado a ela e o `CHANGELOG.md` regenerado — 42 entradas, agora so `Added`/`Fixed`/`Changed`.
+
+**3. `--sync` reescrevia a linha a cada execucao.** Comparava o indice normalizado contra o YAML cru: qualquer decoracao ou variacao de caixa no YAML (`concluido` vs `CONCLUIDO`) marcava divergencia falsa. Passa a normalizar os dois lados, como ja fazia a checagem de divergencia.
+
+**4. Emojis contra a propria Regra 6.** A v6 introduziu a proibicao de emojis em documentos de governanca e codigo, e o `README.md` e o `render-changelog.R` os continham. Removidos.
+
+O CodeRabbit tambem apontou, de forma independente, a lacuna do `git clean` com flags agrupadas — ja corrigida na rodada anterior. Convergencia entre revisor humano-assistido e automatico no mesmo defeito.
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-08-11 20:41 (Horario de Brasilia)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "fix(gov): trata os achados do CodeRabbit no PR #12"
+- **Arquivos afetados**: `AGENTS.md`, `README.md`, `CHANGELOG.md`, `tools/validate-governance.R`, `tools/render-changelog.R`, `NEWS.md`
+- **Nota**: `styler::style_file()` aplicado ao `render-changelog.R` na mesma transacao. A trava exige `NEWS.md` co-commitado em toda alteracao de codigo, o que impede um commit de estilo isolado — o proprio validador recomenda isolar estilo, e as duas regras se contradizem. Registrado como pendencia.
+
+## 2026-08-11 20:08 — Correções da revisão do PR #12: a trava passa a interpor de fato
+
+Revisão do PR #12 antes do merge, a pedido do autor. Sete achados, todos corrigidos nesta rodada. Os três primeiros são de substância.
+
+**1. `AGENTS.md` havia perdido a seção que as skills consomem.** A redução de 157 para 48 linhas (padrão Pocock, "mapa e não sermão") levou junto a tabela **"Configuração de Skills"** — com as chaves `diretorio_governanca` e `script_exportar_conversa`. Mas as 4 skills de governança continuam usando a convenção `{gov}` (5 ocorrências só em `close-task`), e é essa tabela que a define: a referência ficava solta. A tabela foi restaurada em forma compacta, com aviso explícito de que removê-la quebra as skills. A redução do resto do arquivo foi mantida — configuração que tem consumidor não é sermão.
+
+**2. A trava de git não estava interposta.** `tools/git-wrapper.sh|ps1` só protege quem *escolhe* chamar o wrapper; um agente chama `git` direto. A única referência aos wrappers em todo o repositório era uma linha descritiva no `AGENTS.md`. Era policy-as-code que funcionava como documentação. Criado `tools/guard-git-command.sh`, ligado como hook **`PreToolUse`** em `.claude/settings.json` — roda antes do Bash executar, que é onde a proibição deixa de ser pedido e vira impedimento. Casa o padrão contra o payload cru (não há `jq` no ambiente e parsear JSON em bash quebra em aspas escapadas); falha fechado por construção.
+
+**3. Lacunas de cobertura, medidas.** O casamento por igualdade exata deixava passar as formas combinadas:
+
+| Comando | Antes | Agora |
+|---|---|---|
+| `git clean -fdx` | passava | bloqueado |
+| `git add -u` | passava | bloqueado |
+| `git push --force` | não coberto | bloqueado |
+
+Verificado nos dois wrappers e no guard: 8 formas destrutivas bloqueadas, 7 comandos legítimos (`git add -p`, `git clean -n`, `git checkout main`…) passam sem falso positivo.
+
+**4. O `commit-msg` rejeitaria a convenção do próprio repositório.** Rodado contra os 36 commits recentes da `main`: 3 seriam rejeitados, incluindo `merge(governance):` e `revert(governance):` — o bypass só pega `Merge`/`Revert` nus, que são as mensagens padrão do git, não as formas com escopo que o projeto usa. Adicionados `merge`, `revert`, `perf`, `test` e `style`. Agora só o commit inicial é rejeitado, e é histórico.
+
+**5. Caminhos travados por versão no `pre-commit`.** `/c/Program Files/R/R-4.4.1/` e `R-4.4.0` estavam fixos: num template **público com adotante externo**, R 4.5 não seria encontrado. Trocado por busca da instalação mais recente disponível.
+
+**6. Guarda de locale restaurada.** O `unset LC_ALL LC_CTYPE LANG` havia sido removido sem justificativa. **Não reproduzi a falha** que ele previne — o validador achou os 6 planos com e sem o unset — mas o aviso `Setting LC_CTYPE=C.UTF-8 failed` continua sendo emitido e a guarda custa uma linha. Restaurada com nota pedindo reprodução empírica antes de qualquer remoção futura.
+
+**7. Código morto.** `norm_index_status` era atribuído e nunca usado, resíduo da refatoração que passou a normalizar os dois lados da comparação.
+
+**Incidente desta rodada, registrado porque a lição é o ponto.** Ao testar o wrapper PowerShell **antes** de corrigir o bug do parâmetro `$Args` — que fazia `Test-ShortFlag` receber vazio e a trava nunca disparar — o `git clean -fdx` do teste passou pela trava quebrada e **executou de verdade**, apagando os arquivos não rastreados do repositório de trabalho, inclusive a primeira versão do próprio `guard-git-command.sh`. Nada rastreado foi perdido e os arquivos foram recriados. A lição está agora no cabeçalho do guard: **comando destrutivo se testa em diretório descartável, nunca no repositório em uso**. Serve também como demonstração do achado 2 — trava que não interpõe, ou que interpõe errado, não vale nada.
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-08-11 20:08 (Horário de Brasília)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "fix(gov): corrige os sete achados da revisao do PR #12"
+- **Arquivos afetados**: `AGENTS.md`, `hooks/pre-commit`, `hooks/commit-msg`, `tools/guard-git-command.sh`, `tools/git-wrapper.sh`, `tools/git-wrapper.ps1`, `tools/validate-governance.R`, `.claude/settings.json`, `NEWS.md`
+
+## 2026-08-11 14:49 — Modernização de Governança do Template (Master Plan v6, AGENTS.md Matt Pocock e Trava CLI)
+
+Portadas as melhorias de governança validadas no repositório `Mancano2026-MA-Thesis` para o template-mãe `agentic-workflow-template`:
+1. Refatorado `AGENTS.md` para o padrão de alta densidade sem emojis (estilo Matt Pocock).
+2. Adicionados os scripts proxy CLI `tools/git-wrapper.ps1` e `tools/git-wrapper.sh` contra staging em massa (`add .`, `add -A`) e comandos destrutivos.
+3. Atualizado `tools/validate-governance.R` com normalização de status insensível a HTML/brackets/parênteses, correspondência de cabeçalho insensível a acentos (`^## [IÍií]ndice`), e inclusão condicional de `CHANGELOG.md`.
+4. Atualizado `tools/render-changelog.R` com tratamento case-insensitive, filtro de deploys, tratamento de repositórios sem commits e escrita atômica via `.tmp`.
+
+**Metadados de Execução**:
+
+- **Data/Hora**: 2026-08-11 14:49 (Horário Local)
+- **Agente**: Antigravity / Gemini 2.5 Pro / Visual Studio Code
+- **Mensagem do Commit**: "feat(gov): moderniza governança do template com Master Plan v6 e AGENTS.md Pocock"
+- **Arquivos afetados**: `AGENTS.md`, `CLAUDE.md`, `NEWS.md`, `CHANGELOG.md`, `hooks/commit-msg`, `hooks/pre-commit`, `tools/git-wrapper.ps1`, `tools/git-wrapper.sh`, `tools/render-changelog.R`, `tools/validate-governance.R`
 
 ## 2026-07-31 11:13 — Por que Conventional Commits e Keep a Changelog são a mesma decisão
 
@@ -87,25 +198,6 @@ O documento registra também, sem maquiar, uma **questão em aberto**: a `close-
 - **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
 - **Mensagem do Commit**: "docs(principles): reune os principios do template e sua origem"
 - **Arquivos afetados**: `PRINCIPLES.md`, `README.md`, `NEWS.md`
-
-## 2026-07-31 10:05 — `.coderabbit.yaml` versionado: a configuração de revisão vira policy-as-code
-
-**O achado que motiva.** Dos quatro PRs abertos neste ecossistema em 2026-07-30/31, **apenas um foi revisado — e era o único que permanecera aberto**. Os três mergeados sem revisão eram justamente os que alteravam a infraestrutura de enforcement: o `validate-governance.R` (+136 linhas), os hooks `commit-msg`/`pre-commit` e o `render-changelog.R` neste repositório; e o `sync-skills.ps1`/`.sh` mais a remoção do `tools/.skills-source` no repositório `skills`. O risco ficou exatamente invertido: **o que muda a trava passou direto; o que muda a instrução foi esquadrinhado.**
-
-**Duas causas, ambas endereçadas.** O PR #4 recebeu a mensagem *"Review skipped — Auto reviews are disabled on base/target branches other than the default branch"*. E os outros dois nem mensagem receberam: foram criados antes de o app estar ativo e mergeados minutos depois. Nenhum repositório do ecossistema tinha `.coderabbit.yaml` — **toda a configuração vivia na UI**, não versionada, não auditável, sem histórico de quem mudou o quê.
-
-Isso contradizia frontalmente o princípio de policy-as-code deste template: **a configuração que decide se um PR é revisado é política, e política mora no repositório.** Uma regra que só existe num painel web tem o mesmo status epistêmico de uma regra escrita em prosa — é intenção, não controle.
-
-**A chave que importa** é `reviews.auto_review.base_branches`, que inclui `audit/.*` além de `main`. Como PR mergeado **não pode ser reaberto** no GitHub, a forma não destrutiva de submeter código já mergeado à revisão é abrir um PR de `main` **para** uma branch de baseline criada no commit anterior ao merge. Esse PR tem base não-default por construção — e sem essa linha seria pulado, que é precisamente o modo de falha que este arquivo existe para corrigir.
-
-`request_changes_workflow` fica `false`: o revisor informa, mas o merge é decisão do autor humano, coerente com a pré-autorização de fluxo por PR adotada no ecossistema nesta mesma data. O arquivo é validado pelo próprio CodeRabbit, que comenta no PR se alguma chave estiver incorreta — é auto-verificável.
-
-**Metadados de Execução**:
-- **Data/Hora**: 2026-07-31 10:05 (Horário de Brasília)
-- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
-- **Mensagem do Commit**: "chore(review): versiona .coderabbit.yaml e cobre branches de auditoria"
-- **Arquivos afetados**: `.coderabbit.yaml`, `NEWS.md`
->>>>>>> 27a4148 (chore(review): versiona .coderabbit.yaml e cobre branches de auditoria)
 
 ## 2026-07-30 22:45 — Co-commit do NEWS.md, hook commit-msg e o fim do hash escrito à mão (issue #1)
 
@@ -403,4 +495,3 @@ Atualização massiva do template para incorporar as últimas travas de seguran�
 - **Agente**: [Nome do Agente] / [Modelo] / [Plataforma] (ex: Antigravity / Gemini 1.5 Pro / Antigravity CLI)
 - **Mensagem do Commit**: "sua mensagem de commit aqui"
 - **Arquivos afetados**: caminho/do/arquivo1, caminho/do/arquivo2
-

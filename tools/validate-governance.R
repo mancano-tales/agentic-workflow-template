@@ -337,16 +337,37 @@ YAML_CONVENTION_DATE <- "2026-07-09"
 STATUS_KEYWORDS <- c("EM EXECUÇÃO", "CONCLUÍDO", "SUPERADO", "HISTÓRICO", "PARCIAL", "ATIVO")
 
 # Normaliza uma célula de status do índice extraindo a palavra-chave inicial.
-# Robusto a negrito e a anotações com parênteses aninhados:
+# Robusto a negrito, HTML, colchetes e a anotações com parênteses aninhados:
 # "**CONCLUÍDO** (2026-07-12; ver NEWS 2026-07-11 (2))" -> "CONCLUÍDO"
 normalize_status <- function(x) {
   x <- trimws(gsub("\\*", "", x))
+  x <- gsub("<[^>]+>", "", x)
+  x <- gsub("[\\[\\]]", "", x)
+  x_clean <- trimws(gsub("\\s*\\(.*$", "", x))
+  if (grepl("^EM EXECU", x_clean, ignore.case = TRUE)) {
+    return("EM EXECUÇÃO")
+  }
+  if (grepl("^CONCLU", x_clean, ignore.case = TRUE)) {
+    return("CONCLUÍDO")
+  }
+  if (grepl("^SUPERAD", x_clean, ignore.case = TRUE)) {
+    return("SUPERADO")
+  }
+  if (grepl("^HIST", x_clean, ignore.case = TRUE)) {
+    return("HISTÓRICO")
+  }
+  if (grepl("^PARCIAL", x_clean, ignore.case = TRUE)) {
+    return("PARCIAL")
+  }
+  if (grepl("^ATIVO", x_clean, ignore.case = TRUE)) {
+    return("ATIVO")
+  }
   for (kw in STATUS_KEYWORDS) {
-    if (startsWith(x, kw)) {
+    if (startsWith(x_clean, kw)) {
       return(kw)
     }
   }
-  x
+  x_clean
 }
 
 # Data YYYY-MM-DD no prefixo do nome do arquivo, ou NA se não houver
@@ -434,7 +455,11 @@ if (should_sync) {
     yaml_status <- trimws(meta$status)
     index_status_cell <- if (length(parts) >= 3) parts[[3]] else ""
 
-    if (normalize_status(index_status_cell) == yaml_status) {
+    # Normalizar os DOIS lados. Comparar o índice normalizado contra o YAML
+    # cru fazia o --sync reescrever a linha a cada execução sempre que o YAML
+    # trouxesse qualquer decoração ou variação de caixa ("concluído" vs
+    # "CONCLUÍDO"), mesmo já estando em sincronia (achado do CodeRabbit).
+    if (normalize_status(index_status_cell) == normalize_status(yaml_status)) {
       out_rows <- c(out_rows, line) # já em sincronia: preservar anotações manuais
     } else {
       desc <- if (length(parts) >= 5 && nchar(trimws(parts[[5]])) > 0) {
@@ -660,10 +685,24 @@ ABS_PATH_REGEX <- r"{([A-Za-z]:[\\/]Users[\\/]|[\\/][Hh]ome[\\/]|[\\/][Uu]sers[\
 # Helper compartilhado por T1 e T5: varre linhas adicionadas de um conjunto
 # de arquivos staged em busca de caminho absoluto local, reportando até 5
 # ocorrências por arquivo.
+# Escape hatch por LINHA, nao por arquivo: uma linha terminada em
+# `# nolint: abs-path` e dispensada do T1/T5. Existe porque ha codigo cuja
+# funcao e justamente reconhecer caminho absoluto (os sanitizadores do
+# render-changelog.R) e que portanto precisa conter o padrao literalmente.
+#
+# Por que por linha e nao por arquivo: excluir o arquivo inteiro faz qualquer
+# caminho absoluto REAL adicionado a ele depois passar batido — a excecao
+# deixa de cobrir o caso conhecido e passa a cobrir todos os futuros. Sendo
+# nomeada e greppavel (`grep -rn "nolint: abs-path"`), a dispensa fica
+# auditavel em vez de invisivel. Achado do CodeRabbit no PR #12.
+NOLINT_ABS_PATH <- "#\\s*nolint:\\s*abs-path\\s*$"
+
 check_abs_path_in_added_lines <- function(files, label) {
   found_any <- FALSE
   for (f in files) {
     added_lines <- get_staged_added_lines(f)
+    if (length(added_lines) == 0) next
+    added_lines <- added_lines[!grepl(NOLINT_ABS_PATH, added_lines, useBytes = TRUE)]
     if (length(added_lines) == 0) next
     hits <- grepl(ABS_PATH_REGEX, added_lines, useBytes = TRUE) |
       grepl("MancanoSync/", added_lines, fixed = TRUE, useBytes = TRUE)
@@ -688,8 +727,12 @@ check_abs_path_in_added_lines <- function(files, label) {
 # violação (confirmado ao vivo: aconteceu na primeira tentativa de commit
 # desta implementação). Confirmado por grep que o arquivo não contém nenhum
 # caminho absoluto real fora desses dois casos.
+# `tools/render-changelog.R` NAO entra nesta lista: ele continua sendo
+# escaneado, e as duas linhas dos seus sanitizadores usam o marcador
+# `# nolint: abs-path`. Excluir o arquivo inteiro deixaria passar qualquer
+# caminho absoluto real adicionado a ele no futuro (achado do CodeRabbit).
 rq_files <- staged_files[grepl("\\.(R|qmd)$", staged_files, ignore.case = TRUE) &
-  staged_files != "tools/validate-governance.R"]
+  !staged_files %in% c("tools/validate-governance.R")]
 
 if (length(rq_files) > 0) {
   cat_info(sprintf(
@@ -717,6 +760,9 @@ GOVERNANCE_DOCS <- c(
   paste0(GOV_DIR, "/plan/README.md"),
   paste0(GOV_DIR, "/llm-reviews/README.md")
 )
+if (file.exists("CHANGELOG.md")) {
+  GOVERNANCE_DOCS <- c(GOVERNANCE_DOCS, "CHANGELOG.md")
+}
 gov_files <- staged_files[staged_files %in% GOVERNANCE_DOCS]
 
 if (length(gov_files) > 0) {
@@ -753,7 +799,8 @@ if (is_hook_run && file.exists(file.path(CWD, "NEWS.md"))) {
   is_merge <- local({
     out <- suppressWarnings(tryCatch(
       system2("git", c("rev-parse", "-q", "--verify", "MERGE_HEAD"),
-              stdout = TRUE, stderr = FALSE),
+        stdout = TRUE, stderr = FALSE
+      ),
       error = function(e) character(0)
     ))
     status <- attr(out, "status")
@@ -819,8 +866,10 @@ if (is_hook_run && file.exists(file.path(CWD, "NEWS.md"))) {
       if (!has_entry && !has_header && prose_chars < MIN_PROSE_CHARS) {
         cat_error("Commit BLOQUEADO: as linhas novas do 'NEWS.md' não formam uma entrada de changelog.")
         cat_info("Esperado um item de lista com data ISO-8601, um cabeçalho de seção,")
-        cat_info(sprintf("ou prosa substantiva (mínimo %d caracteres; recebido %d).",
-                         MIN_PROSE_CHARS, prose_chars))
+        cat_info(sprintf(
+          "ou prosa substantiva (mínimo %d caracteres; recebido %d).",
+          MIN_PROSE_CHARS, prose_chars
+        ))
         cat_info("Exemplo: - **2026-07-30 15:45** — Descrição da mudança e do porquê.")
         errors_found <- TRUE
       }
@@ -1052,7 +1101,8 @@ if (any(grepl("^<<<<<<<", plan_index_lines))) {
 in_indice_section <- FALSE
 table_lines <- c()
 for (line in plan_index_lines) {
-  if (grepl("^## Índice", line)) {
+  if (grepl("^## .*([IÍií]ndice|Index)", line, ignore.case = TRUE, useBytes = TRUE) ||
+    grepl("<!-- BEGIN_PLAN_INDEX -->", line, fixed = TRUE, useBytes = TRUE)) {
     in_indice_section <- TRUE
     next
   }
@@ -1162,11 +1212,18 @@ for (plan_file in names(indexed_plans)) {
     yaml_status <- trimws(yaml_data$status)
     index_status <- indexed_plans[[plan_file]]
 
-    # Normalizar o status do índice: extrai a palavra-chave inicial (robusto a
-    # negrito e a anotações com parênteses aninhados)
-    norm_index_status <- normalize_status(index_status)
+    # Normalizar os DOIS lados: extrai a palavra-chave inicial (robusto a
+    # negrito, HTML, colchetes e anotações com parênteses aninhados). Antes o
+    # YAML era comparado cru contra o índice normalizado, o que acusava
+    # divergência falsa quando o YAML trazia qualquer decoração.
+    #
+    # Calculado UMA vez e reutilizado na checagem de conclusão abaixo: usar o
+    # valor cru ali fazia um YAML com `concluído` minúsculo ou decorado pular
+    # silenciosamente a verificação de `relacionados` e do inventário de
+    # llm-reviews — falha aberta (achado do CodeRabbit no PR #12).
+    yaml_status_norm <- normalize_status(yaml_status)
 
-    if (yaml_status != norm_index_status) {
+    if (yaml_status_norm != normalize_status(index_status)) {
       cat_error(sprintf(
         "Divergência de status no plano '%s': YAML diz '%s' e README.md diz '%s'",
         plan_file, yaml_status, index_status
@@ -1177,7 +1234,7 @@ for (plan_file in names(indexed_plans)) {
     # 3.3. Verificar registro do log de conversa para planos CONCLUÍDOS
     # (só para planos pós-convenção; a exportação retroativa de sessões
     # antigas foi feita caso a caso — ver plano de 2026-07-12)
-    if (yaml_status == "CONCLUÍDO" && !is_legacy) {
+    if (yaml_status_norm == "CONCLUÍDO" && !is_legacy) {
       concluido_data <- yaml_data$concluido
       if (is.null(concluido_data) || concluido_data == "null" || concluido_data == "") {
         cat_warn(sprintf("Plano '%s' está CONCLUÍDO no YAML, mas a data 'concluido' está vazia ou nula.", plan_file))
