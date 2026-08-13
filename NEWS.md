@@ -3,6 +3,26 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-08-11 21:34 — Terceira rodada: a trava troca heuristica de texto por analise de tokens
+
+O CodeRabbit revisou a correcao anterior e mostrou que ela ainda era contornavel. O achado nao e mais um bypass isolado: e o **metodo** que estava errado.
+
+**Enumerar opcao global e corrida perdida.** A versao anterior listava as opcoes globais do git (`-C`, `-c`, `--git-dir`...) para achar o subcomando depois delas. Ficavam de fora `-P`, `--no-advice`, `--no-lazy-fetch`, caminho citado com espacos (`git -C "/tmp/repo com espaco" clean -fdx`) e continuacao de linha — e cada versao do git pode adicionar opcoes novas, o que faz a lista envelhecer sozinha.
+
+**A analise passou a ser por tokens** (`tools/guard-git-command.py`): o payload JSON e parseado, o comando tokenizado com respeito a aspas e continuacao, os segmentos separados nos operadores de shell, e o subcomando identificado depois de **qualquer** token iniciado por `-`. Opcao global futura fica coberta sem manutencao.
+
+**Ganho que nao era o objetivo: menos falso positivo.** A versao com regex casava contra o payload cru, entao bloqueava `git commit -m "fix: limpa o cache e faz reset --hard no mock"` e ate `grep -rn 'git add .' docs/` — comandos inofensivos que apenas mencionavam o padrao. Com tokens, os dois passam. Tokenizar fechou bypass **e** devolveu ergonomia.
+
+**Falha fechada preservada, e com escopo.** Se `git` aparece no comando e a tokenizacao falha (aspas desbalanceadas, por exemplo), bloqueia. Sem Python no ambiente, o `.sh` cai num fallback deliberadamente grosseiro que tambem bloqueia por precaucao, em vez de deixar passar. Comando que nao menciona `git` nunca e assunto da trava.
+
+Verificado: 10 formas antes contornaveis agora bloqueadas; 14 comandos legitimos passam. Acrescentados tambem `--update`, `--renormalize` e `--pathspec-from-file` como formas de selecao multipla, nos tres pontos.
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-08-11 21:34 (Horario de Brasilia)
+- **Agente**: Claude Opus 5 / claude-opus-5 / Claude Code (VS Code)
+- **Mensagem do Commit**: "fix(gov): troca a heuristica da trava por analise de tokens"
+- **Arquivos afetados**: `tools/guard-git-command.py`, `tools/guard-git-command.sh`, `tools/git-wrapper.sh`, `tools/git-wrapper.ps1`, `NEWS.md`
+
 ## 2026-08-11 21:05 — Segunda rodada do CodeRabbit: o bypass por opcao global do git
 
 O CodeRabbit revisou as proprias correcoes da rodada anterior e encontrou um **bypass critico** que nem a revisao manual nem a primeira passada dele haviam pego.

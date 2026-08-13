@@ -54,7 +54,7 @@ case "$SUB" in
   add)
     # `-u` faz stage de todos os rastreados: é staging em massa ainda que
     # não pareça. Estava fora da versão original desta trava.
-    if echo "$ARGS" | grep -qE '(^|[[:space:]])((-[A-Za-z]*[Au])|--all|\.|\*|:/)([[:space:]]|$)'; then
+    if echo "$ARGS" | grep -qE '(^|[[:space:]])((-[A-Za-z]*[Au])|--all|--update|--renormalize|--pathspec-from-file|\.|\*|:/)([[:space:]=]|$)'; then
       recusar "Staging em massa proibido." \
         "Use staging cirurgico, um arquivo por vez: git add caminho/do/arquivo.ext"
     fi

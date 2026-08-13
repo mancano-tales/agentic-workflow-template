@@ -75,6 +75,8 @@ switch ($firstArg) {
         # nao pareca. Estava fora da versao original desta trava.
         $massa = $rest | Where-Object {
             $_ -eq "." -or $_ -eq "*" -or $_ -eq ":/" -or $_ -eq "--all" -or
+            $_ -eq "--update" -or $_ -eq "--renormalize" -or
+            $_ -like "--pathspec-from-file*" -or
             $_ -match "^-[A-Za-z]*[Au][A-Za-z]*$"
         }
         if ($massa) {
