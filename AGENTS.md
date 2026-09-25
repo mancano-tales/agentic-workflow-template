@@ -56,7 +56,7 @@
 
 | Chave | Usada por | Valor neste repositório |
 |---|---|---|
-| `diretorio_governanca` | `close-task`, `export-conversation`, `git-cleanup`, `request-audit`, `tools/*.R` | `9-vers/`. Consumidores que usam outro nome (`0-meta/`) declaram o seu aqui. Nas skills, lido **desta tabela** pela convenção `{gov}`. Nos scripts R a resolução é automática: **(1)** env var `GOV_DIR`; **(2)** detecção em disco (`0-meta` → `9-vers`); **(3)** fallback |
+| `diretorio_governanca` | `close-task`, `export-conversation`, `git-cleanup`, `request-audit`, `tools/*.R` | `9-vers/`. Consumidores que usam outro nome (`0-meta/`) declaram o seu aqui. Nas skills, lido **desta tabela** pela convenção `{gov}`. Nos scripts R a resolução é automática: **(1)** env var `GOV_DIR`; **(2)** detecção em disco, na ordem `0-meta` → `9-vers` → `repo-governance` (o primeiro que existir vence); **(3)** fallback para `0-meta`. Nome fora dessa lista exige `GOV_DIR` |
 | `script_exportar_conversa` | `close-task`, `export-conversation` | `tools/export_conversa.R` |
 | `diretorio_autoria_primaria` | `close-task`, `git-cleanup` | [PLACEHOLDER — pasta de prosa/notebooks de autoria humana que agentes não devem comitar sem autorização] |
 | `arquivo_gerenciado_externamente` | `git-cleanup` | [PLACEHOLDER — arquivo escrito por ferramenta externa (biblioteca de citação, lockfile, schema gerado); nunca editar manualmente] |

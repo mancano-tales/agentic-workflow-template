@@ -3,6 +3,53 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-09-25 18:06 — `export_conversa.R`: caminho entra na regex escapado
+
+A revisão do Copilot no PR #14 apontou que `padrao_de_caminho()` montava a regex com o caminho da raiz do repo e da pasta do usuário **sem escapar metacaracteres**. Reproduzido no R: com a correção das 10:25, 5 de 11 casos passavam. Pastas com `(`, `+` ou `[` — padrão do OneDrive no Windows, como `OneDrive - USP (Pessoal)` — não casavam, e o caminho absoluto **vazava em silêncio** no export, para ser barrado depois pela T1 no último passo da `close-task`. Um `(` sem par abortava o PCRE. O `.` de `mancano-tales.github.io` casava qualquer caractere.
+
+A correção separa o caminho em segmentos, escapa cada um (`escapar_regex()`) e os junta com `[/\\]+`. A unidade (`C:` ou `/c`) continua tratada à parte. Testado com as funções extraídas do próprio arquivo: 11 de 11 casos, incluindo as quatro grafias da entrada anterior e um caminho de fora do repo, que não é tocado.
+
+Também da revisão: os comentários dos dois scripts e a tabela § Configuração de Skills do `AGENTS.md` ainda descreviam a detecção como `0-meta` → `9-vers`, sem `repo-governance`. Atualizados.
+
+Fica em aberto, fora deste PR: cada renomeação da pasta de governança num consumidor exige mexer na lista de candidatos do template, o que contraria o `PRINCIPLES.md` §3. O caminho definitivo é o script ler o nome da configuração do próprio projeto.
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-09-25 18:06 (Horário de Brasília)
+- **Agente**: Claude Code (web)
+- **Mensagem do Commit**: "fix(tools): escapa metacaracteres do caminho na regex do export"
+- **Arquivos afetados**: `tools/export_conversa.R`, `tools/validate-governance.R`, `AGENTS.md`, `NEWS.md`
+
+## 2026-09-25 10:25 — `export_conversa.R`: sanitização de caminhos quebrava no Windows
+
+O primeiro export real no Windows (no `mancano-repo-hub`) abortou em `sanitizar_caminhos()` com erro do PCRE: *missing terminating ] for character class*. Havia dois defeitos em `padrao_de_caminho()`:
+
+- `"(?:\1:|/\1)"` numa string R não é a retroreferência: `"\1"` é o caractere de controle 001. A letra da unidade nunca entrava no padrão. O certo é `"\\1"`.
+- `gsub("/", "[/\\\\]", p)` usa uma **substituição** com regex, em que `\\` vira uma barra só. O resultado era `[/\]`, uma classe sem fechamento. Com `fixed = TRUE`, a substituição é literal e sai `[/\\]`.
+
+Aproveitando a correção, o separador virou `[/\\]+`, que também pega a barra dupla escapada que aparece no JSON das chamadas de ferramenta (`C:\\\\Users\\\\…`). Sem isso, esses caminhos vazavam no export. Testado nas quatro grafias (`C:/x`, `c:\x`, `/c/x` e a escapada do JSON), e um caminho de fora não é tocado. O export real de uma conversa de 425 KB saiu sem nenhum caminho absoluto.
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-09-25 10:25 (Horario de Brasilia)
+- **Agente**: Claude Opus 5.5 / claude-opus-5-5 / Claude Code (desktop)
+- **Mensagem do Commit**: "fix(tools): regex de sanitizacao de caminhos no Windows"
+- **Arquivos afetados**: `tools/export_conversa.R`, `NEWS.md`
+
+## 2026-09-25 02:08 — Devolucoes do mancano-repo-hub: `repo-governance` e `%||%` para R < 4.4
+
+Ao importar as ferramentas do PR #12 para a raiz do ecossistema (`mancano-repo-hub`), duas coisas precisaram de ajuste local. Voltam aqui para as copias nao divergirem.
+
+**`repo-governance` na lista de candidatos.** A pasta de governanca do hub passou a se chamar `repo-governance/` (antes `0-meta/`, e por um dia `9-vers/`). Sem o nome na lista, `export_conversa.R` e `validate-governance.R` caem no fallback e escrevem numa pasta que nao existe. O nome entra **no fim** de `GOV_DIR_CANDIDATOS`: a deteccao em disco continua pegando o primeiro que existe, e o fallback dos repos que ja usam o template (`0-meta`) nao muda.
+
+**`%||%` definido no `render-changelog.R`.** O operador so existe no R base a partir do 4.4.0; num R 4.3 o script abortava antes de gerar qualquer coisa. A definicao local so entra se o operador nao existir. O `export_conversa.R` ja tinha a sua.
+
+Verificado: os tres scripts fazem parse; `render-changelog.R` gera 36 entradas neste repo; a deteccao devolve `repo-governance` na raiz do hub.
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-09-25 02:08 (Horario de Brasilia)
+- **Agente**: Claude Opus 5.5 / claude-opus-5-5 / Claude Code (desktop)
+- **Mensagem do Commit**: "fix(tools): repo-governance nos candidatos e %||% para R < 4.4"
+- **Arquivos afetados**: `tools/export_conversa.R`, `tools/validate-governance.R`, `tools/render-changelog.R`, `NEWS.md`
+
 ## 2026-08-11 21:34 — Terceira rodada: a trava troca heuristica de texto por analise de tokens
 
 O CodeRabbit revisou a correcao anterior e mostrou que ela ainda era contornavel. O achado nao e mais um bypass isolado: e o **metodo** que estava errado.
