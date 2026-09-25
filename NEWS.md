@@ -3,6 +3,24 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-09-25 20:44 — Trava de git: quebra de linha, comando embrulhado e refspec com `+`
+
+A mesma revisao pos-merge mediu quatro comandos destrutivos que o `tools/guard-git-command.py` deixava passar com rc=0: `git status` + quebra de linha + `git clean -fdx`; o mesmo com `git add .`; `bash -c "git reset --hard"`; e `git push origin +main`.
+
+**Causas.** (1) O shlex tratava a quebra de linha como espaco, entao o `"\n"` que constava do conjunto de separadores nunca chegava como token; e, dentro de um segmento, so o PRIMEIRO `git` era analisado (`break`). (2) Comando passado a outro shell chega como uma string unica, que nenhum token isolado denuncia. (3) O push so procurava `--force`/`-f`, e o `+` no refspec forca do mesmo jeito.
+
+**Correcao.** A quebra de linha virou pontuacao (separador como `;`, `&&`, `||`, `|`, `&` e parenteses de subshell), com a continuacao `\`+quebra preservada; todo `git` de cada segmento e analisado. `bash|sh|zsh|dash|ksh -c`, `cmd /c`, `powershell|pwsh -Command`, `-EncodedCommand` (decodificado do base64) e `eval` tem a string interna analisada recursivamente, com teto de profundidade e falha fechada; `$(...)` e crases tambem. Refspec com `+` no push conta como force. Cabia sem risco e entrou: `git checkout -f|--force`, `git switch --discard-changes|-f` e `git branch -D` (ou `-d` com `-f`). O fallback sem Python do `.sh` ganhou as mesmas formas novas.
+
+**Limite documentado.** Depois de tokenizar nao se sabe mais se a string veio entre aspas simples ou duplas. Crase ou `$(...)` dentro de aspas simples (literal, que o shell nao executa) e analisada como executavel: ``git commit -m 'veja `git add .`'`` e bloqueado. Entre aspas duplas o bash executaria de fato, entao errar para o lado do bloqueio e o certo. Texto comum na mensagem, `git commit -m "texto com git add . dentro da mensagem"`, passa. O fallback sem Python continua grosseiro: bloqueia ate `git add arquivo.R` (o `.` do nome casa), como ja fazia antes.
+
+**Teste automatizado novo**: `tools/test_guard_git_command.py`, so biblioteca padrao (`python tools/test_guard_git_command.py`). Resultado: 69/69 — 45 bloqueados (os quatro do achado, as variantes de separador e embrulho, as formas novas e as ja cobertas, como regressao) e 24 liberados (`git add arquivo.R`, `git status`, `git log`, `git push origin minha-branch`, a mensagem com `git add .` dentro, `bash -c "git status"`, entre outros).
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-09-25 20:44 (Horario de Brasilia)
+- **Agente**: Claude Opus 5.5 / claude-opus-5-5 / Claude Code (subagente)
+- **Mensagem do Commit**: "fix(guard): fecha bypass por quebra de linha, shell embrulhado e refspec"
+- **Arquivos afetados**: `tools/guard-git-command.py`, `tools/guard-git-command.sh`, `tools/test_guard_git_command.py`, `NEWS.md`, `CHANGELOG.md`
+
 ## 2026-09-25 20:44 — commit-msg volta ao validador completo da main pre-PR #12
 
 A revisao pos-merge do PR #12 mediu que o `hooks/commit-msg` do PR regrediu em relacao ao que a `main` tinha antes dele (`a73862f`). A versao do PR so acrescentou tipos, mas foi escrita do zero e perdeu quatro garantias:

@@ -1,13 +1,12 @@
 # CHANGELOG (derivado)
 
-Derivado do `git log` por `tools/render-changelog.R`. Commit mais recente incluído: 2026-08-11.
+Derivado do `git log` por `tools/render-changelog.R`. Commit mais recente incluído: 2026-09-25.
 
 Arquivo DERIVADO do `git log`. Não edite à mão — a fonte editorial é o `NEWS.md` e o histórico do Git.
 
 ## Added
 
-- **`[5e89dfa]` 2026-08-11** — feat(gov): moderniza governança do template com Master Plan v6 e AGENTS.md Pocock
-- **`[97a37d8]` 2026-07-31** — feat(changelog): gera e versiona CHANGELOG.md derivado do git log
+- **`[35e41d1]` 2026-09-25** — feat(gov): moderniza governanca do template com Master Plan v6 e AGENTS.md Pocock (#12)
 - **`[c1e2106]` 2026-07-30** — feat(governance): valida conteudo do NEWS.md e adiciona commit-msg
 - **`[8009fdd]` 2026-07-28** — feat(governance): parametrize GOV_DIR — config-driven diretorio_governanca in skills and R tools
 - **`[5fa9b59]` 2026-07-27** — feat(governance): indireção real do diretório de governança (WP3) e plano de migração AGENTS.md
@@ -20,8 +19,7 @@ Arquivo DERIVADO do `git log`. Não edite à mão — a fonte editorial é o `NE
 
 ## Fixed
 
-- **`[c5535ab]` 2026-08-11** — fix(gov): corrige os sete achados da revisao do PR #12
-- **`[c0bdd85]` 2026-07-31** — fix(changelog): torna a geracao deterministica e alinha as categorias
+- **`[233fdc1]` 2026-09-25** — fix(hooks): restaura o commit-msg completo e acrescenta os tipos novos
 - **`[a0120ea]` 2026-07-30** — fix(export): sanitiza caminhos absolutos, que o proprio T1 bloqueia
 - **`[684d82b]` 2026-07-29** — fix(setup): adiciona BOM ao setup.ps1 — PowerShell 5.1 lia o arquivo como ANSI
 - **`[5e6e5c2]` 2026-07-15** — fix(governance): relocate hard-link self-heal backups from repo root to 9-vers/backups/
@@ -31,9 +29,6 @@ Arquivo DERIVADO do `git log`. Não edite à mão — a fonte editorial é o `NE
 
 - **`[a73862f]` 2026-08-11** — chore(review): versiona .coderabbit.yaml e cobre branches de auditoria (#6)
 - **`[e20de43]` 2026-08-11** — docs(principles): principios do template e CHANGELOG.md derivado versionado (#5)
-- **`[659b6c8]` 2026-07-31** — docs(conventions): explica o encaixe entre commits e changelog
-- **`[d7b4d2b]` 2026-07-31** — docs(todo): pendencia de mapeamento de referencias e inspiracoes
-- **`[1efa82d]` 2026-07-31** — docs(principles): reune os principios do template e sua origem
 - **`[c76f800]` 2026-07-30** — docs(review): ajusta comentario do commit-msg e formatacao do NEWS.md
 - **`[8a50fbb]` 2026-07-29** — refactor(governance): AGENTS.md vira o arquivo real e único; fim dos hard links (WP1+WP2)
 - **`[d0ae954]` 2026-07-28** — chore(todo): promote diretorio_governanca task from Prospectivo to Concluído
