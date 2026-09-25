@@ -86,8 +86,12 @@ DIR_USUARIO <- normalizePath(
 # Aceita as tres grafias que aparecem na pratica: "C:/x", "C:\x" e "/c/x" (Git
 # Bash), com a letra da unidade em qualquer caixa.
 padrao_de_caminho <- function(caminho) {
-  p <- gsub("^([A-Za-z]):", "(?:\1:|/\1)", caminho)
-  gsub("/", "[/\\\\]", p)
+  # "\\1" (e nao "\1", que numa string R e o caractere 001) e fixed = TRUE na
+  # 2a troca: sem isso a substituicao vira "[/\]", classe sem fechamento, e o
+  # PCRE aborta (achado em 2026-09-25, no primeiro export real no Windows).
+  # "+" pega tambem a barra dupla escapada que aparece no JSON das ferramentas.
+  p <- gsub("^([A-Za-z]):", "(?:\\1:|/\\1)", caminho)
+  gsub("/", "[/\\\\]+", p, fixed = TRUE)
 }
 
 sanitizar_caminhos <- function(x) {
