@@ -3,6 +3,22 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-09-25 02:08 — Devolucoes do mancano-repo-hub: `repo-governance` e `%||%` para R < 4.4
+
+Ao importar as ferramentas do PR #12 para a raiz do ecossistema (`mancano-repo-hub`), duas coisas precisaram de ajuste local. Voltam aqui para as copias nao divergirem.
+
+**`repo-governance` na lista de candidatos.** A pasta de governanca do hub passou a se chamar `repo-governance/` (antes `0-meta/`, e por um dia `9-vers/`). Sem o nome na lista, `export_conversa.R` e `validate-governance.R` caem no fallback e escrevem numa pasta que nao existe. O nome entra **no fim** de `GOV_DIR_CANDIDATOS`: a deteccao em disco continua pegando o primeiro que existe, e o fallback dos repos que ja usam o template (`0-meta`) nao muda.
+
+**`%||%` definido no `render-changelog.R`.** O operador so existe no R base a partir do 4.4.0; num R 4.3 o script abortava antes de gerar qualquer coisa. A definicao local so entra se o operador nao existir. O `export_conversa.R` ja tinha a sua.
+
+Verificado: os tres scripts fazem parse; `render-changelog.R` gera 36 entradas neste repo; a deteccao devolve `repo-governance` na raiz do hub.
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-09-25 02:08 (Horario de Brasilia)
+- **Agente**: Claude Opus 5.5 / claude-opus-5-5 / Claude Code (desktop)
+- **Mensagem do Commit**: "fix(tools): repo-governance nos candidatos e %||% para R < 4.4"
+- **Arquivos afetados**: `tools/export_conversa.R`, `tools/validate-governance.R`, `tools/render-changelog.R`, `NEWS.md`
+
 ## 2026-08-11 21:34 — Terceira rodada: a trava troca heuristica de texto por analise de tokens
 
 O CodeRabbit revisou a correcao anterior e mostrou que ela ainda era contornavel. O achado nao e mais um bypass isolado: e o **metodo** que estava errado.

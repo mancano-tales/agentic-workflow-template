@@ -54,7 +54,9 @@ PASTA_ANTIGRAVITY <- file.path(
 # "0-meta" que rode o script sem setar a env var volta a escrever na pasta
 # errada — exatamente o modo de falha acima.
 # Ver 9-vers/plan/2026-07-27_Plano_Migracao_AGENTS-md_e_Indirecao_Governanca.md
-GOV_DIR_CANDIDATOS <- c("0-meta", "9-vers")
+# "repo-governance" (2026-09-25): nome da pasta na raiz do mancano-repo-hub. Vai
+# no fim da lista para nao mudar o fallback dos repos que ja usam o template.
+GOV_DIR_CANDIDATOS <- c("0-meta", "9-vers", "repo-governance")
 GOV_DIR <- Sys.getenv("GOV_DIR", unset = "")
 if (!nzchar(GOV_DIR)) {
   GOV_DIR <- Find(function(d) dir.exists(file.path(getwd(), d)), GOV_DIR_CANDIDATOS)

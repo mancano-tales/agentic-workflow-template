@@ -6,6 +6,11 @@
 #   Rscript tools/render-changelog.R [--output CHANGELOG.md] [--since YYYY-MM-DD]
 # ==============================================================================
 
+# `%||%` so existe no R base a partir do 4.4.0. Definido aqui para o script rodar
+# tambem em R mais antigo (achado ao importar para o mancano-repo-hub, 2026-09-25,
+# num R 4.3 em que o script abortava antes de gerar qualquer coisa).
+if (!exists("%||%", mode = "function")) `%||%` <- function(x, y) if (is.null(x)) y else x
+
 CWD <- getwd()
 args <- commandArgs(trailingOnly = TRUE)
 
