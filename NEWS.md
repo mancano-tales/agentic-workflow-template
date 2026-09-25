@@ -3,6 +3,22 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-09-25 18:06 — `export_conversa.R`: caminho entra na regex escapado
+
+A revisão do Copilot no PR #14 apontou que `padrao_de_caminho()` montava a regex com o caminho da raiz do repo e da pasta do usuário **sem escapar metacaracteres**. Reproduzido no R: com a correção das 10:25, 5 de 11 casos passavam. Pastas com `(`, `+` ou `[` — padrão do OneDrive no Windows, como `OneDrive - USP (Pessoal)` — não casavam, e o caminho absoluto **vazava em silêncio** no export, para ser barrado depois pela T1 no último passo da `close-task`. Um `(` sem par abortava o PCRE. O `.` de `mancano-tales.github.io` casava qualquer caractere.
+
+A correção separa o caminho em segmentos, escapa cada um (`escapar_regex()`) e os junta com `[/\\]+`. A unidade (`C:` ou `/c`) continua tratada à parte. Testado com as funções extraídas do próprio arquivo: 11 de 11 casos, incluindo as quatro grafias da entrada anterior e um caminho de fora do repo, que não é tocado.
+
+Também da revisão: os comentários dos dois scripts e a tabela § Configuração de Skills do `AGENTS.md` ainda descreviam a detecção como `0-meta` → `9-vers`, sem `repo-governance`. Atualizados.
+
+Fica em aberto, fora deste PR: cada renomeação da pasta de governança num consumidor exige mexer na lista de candidatos do template, o que contraria o `PRINCIPLES.md` §3. O caminho definitivo é o script ler o nome da configuração do próprio projeto.
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-09-25 18:06 (Horário de Brasília)
+- **Agente**: Claude Code (web)
+- **Mensagem do Commit**: "fix(tools): escapa metacaracteres do caminho na regex do export"
+- **Arquivos afetados**: `tools/export_conversa.R`, `tools/validate-governance.R`, `AGENTS.md`, `NEWS.md`
+
 ## 2026-09-25 10:25 — `export_conversa.R`: sanitização de caminhos quebrava no Windows
 
 O primeiro export real no Windows (no `mancano-repo-hub`) abortou em `sanitizar_caminhos()` com erro do PCRE: *missing terminating ] for character class*. Havia dois defeitos em `padrao_de_caminho()`:

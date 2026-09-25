@@ -35,7 +35,8 @@ PASTA_ANTIGRAVITY <- file.path(
 )
 # ── Diretório de governança (indireção) ───────────────────────────────────────
 # O nome do diretório de governança varia entre os repositórios que usam este
-# template: "0-meta" na raiz MancanoSync e no repo `skills`; "9-vers" nos repos
+# template: "0-meta" no repo `skills`; "repo-governance" na raiz do
+# mancano-repo-hub (era "0-meta" ate 2026-09-24); "9-vers" nos repos
 # de pesquisa, onde é o slot 9 de uma taxonomia numerada VIVA (2-set/, 3-texts/,
 # 4-DA-Code/, 6-images-tables/, 9-vers/) e portanto está correto ali.
 #
@@ -85,13 +86,21 @@ DIR_USUARIO <- normalizePath(
 
 # Aceita as tres grafias que aparecem na pratica: "C:/x", "C:\x" e "/c/x" (Git
 # Bash), com a letra da unidade em qualquer caixa.
+#
+# Cada segmento do caminho entra na regex ESCAPADO: um caminho e texto literal,
+# e pastas comuns no Windows tem metacaracteres ("OneDrive - USP (Pessoal)",
+# "proj+v2", "dados[2026]"). Sem o escape, esses caminhos nao casavam e vazavam
+# em silencio no export; um "(" sem par abortava o PCRE (achado do Copilot no
+# PR #14, reproduzido em 2026-09-25). O separador `[/\\]+` pega tambem a barra
+# dupla escapada que aparece no JSON das chamadas de ferramenta.
+escapar_regex <- function(x) gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", x)
+
 padrao_de_caminho <- function(caminho) {
-  # "\\1" (e nao "\1", que numa string R e o caractere 001) e fixed = TRUE na
-  # 2a troca: sem isso a substituicao vira "[/\]", classe sem fechamento, e o
-  # PCRE aborta (achado em 2026-09-25, no primeiro export real no Windows).
-  # "+" pega tambem a barra dupla escapada que aparece no JSON das ferramentas.
-  p <- gsub("^([A-Za-z]):", "(?:\\1:|/\\1)", caminho)
-  gsub("/", "[/\\\\]+", p, fixed = TRUE)
+  unidade <- regmatches(caminho, regexpr("^[A-Za-z](?=:)", caminho, perl = TRUE))
+  resto <- sub("^[A-Za-z]:", "", caminho)
+  segmentos <- strsplit(resto, "/", fixed = TRUE)[[1]]
+  corpo <- paste(escapar_regex(segmentos), collapse = "[/\\\\]+")
+  if (length(unidade)) paste0("(?:", unidade, ":|/", unidade, ")", corpo) else corpo
 }
 
 sanitizar_caminhos <- function(x) {

@@ -19,7 +19,8 @@ CWD <- getwd()
 
 # ── Diretório de governança (indireção) ───────────────────────────────────────
 # O nome do diretório de governança varia entre os repositórios que usam este
-# template: "0-meta" na raiz MancanoSync e no repo `skills`; "9-vers" nos repos
+# template: "0-meta" no repo `skills`; "repo-governance" na raiz do
+# mancano-repo-hub (era "0-meta" ate 2026-09-24); "9-vers" nos repos
 # de pesquisa, onde é o slot 9 de uma taxonomia numerada VIVA (2-set/, 3-texts/,
 # 4-DA-Code/, 6-images-tables/, 9-vers/) e portanto está correto ali.
 #
