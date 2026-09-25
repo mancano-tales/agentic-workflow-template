@@ -3,6 +3,27 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-09-25 20:44 — commit-msg volta ao validador completo da main pre-PR #12
+
+A revisao pos-merge do PR #12 mediu que o `hooks/commit-msg` do PR regrediu em relacao ao que a `main` tinha antes dele (`a73862f`). A versao do PR so acrescentou tipos, mas foi escrita do zero e perdeu quatro garantias:
+
+- o limite de 72 caracteres no cabecalho, a recusa de ponto final e a exigencia de `!` quando o rodape traz `BREAKING CHANGE`, alem do aviso (nunca bloqueio) de gerundio/participio;
+- o bypass de `fixup!`/`squash!`/`Reapply`, o que quebrava `git rebase --autosquash`;
+- escopo com `.` ou `/` (`fix(tools/validate):`, `docs(v2.1):`), que passou a ser recusado;
+- a leitura do cabecalho pulando comentarios e linhas vazias no topo da mensagem (lia `head -n 1` cru).
+
+**Correcao**: o hook volta a ser o da `main` pre-PR, e so os tipos novos do PR sao acrescentados (`merge`, `thesis`, `lit`, `data`, `draft`; `revert` ja existia). O escopo aceita tambem maiusculas, que a versao do PR aceitava — mantido para nao recusar `docs(AGENTS):`.
+
+Verificado com 21 mensagens em arquivos temporarios: 15 validas passam (incluindo `fixup! x`, `fix(tools/validate): x`, `docs(v2.1): x`, os cinco tipos novos e mensagem com comentarios no topo) e 6 invalidas sao recusadas (cabecalho de 80 caracteres, ponto final, `BREAKING CHANGE` sem `!`, sem tipo, tipo inexistente, sem espaco apos os dois-pontos).
+
+Efeito colateral a conhecer: dos 60 cabecalhos mais recentes do historico, 29 passam dos 72 caracteres e seriam recusados hoje, entre eles o proprio squash do PR #12 (87 caracteres, porque o GitHub acrescenta ` (#12)`). Sao anteriores ao hook ou vieram de merge pelo GitHub, que nao roda hook local; nao ha o que corrigir no historico.
+
+**Metadados de Execucao**:
+- **Data/Hora**: 2026-09-25 20:44 (Horario de Brasilia)
+- **Agente**: Claude Opus 5.5 / claude-opus-5-5 / Claude Code (subagente)
+- **Mensagem do Commit**: "fix(hooks): restaura o commit-msg completo e acrescenta os tipos novos"
+- **Arquivos afetados**: `hooks/commit-msg`, `NEWS.md`
+
 ## 2026-08-11 21:34 — Terceira rodada: a trava troca heuristica de texto por analise de tokens
 
 O CodeRabbit revisou a correcao anterior e mostrou que ela ainda era contornavel. O achado nao e mais um bypass isolado: e o **metodo** que estava errado.
