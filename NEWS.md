@@ -3,6 +3,16 @@
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-09-26 15:59 — Regra 3: exportar a conversa só quando o autor pedir
+
+Decisão do autor (em chat, na sessão do hub): a Regra 3 do `AGENTS.md`, que mandava exportar o log da sessão ao concluir toda tarefa, passa a dizer **só quando o autor pedir**, uma vez por sessão. Como este é o template, a regra antiga nascia em todo repositório novo e gerava cópias repetidas da mesma conversa. A skill e o script continuam como estavam. Plano no `mancano-repo-hub`: `repo-governance/plan/2026-09-26_Plano_AGENTS_Enxutos_e_Export_Sob_Demanda.md` (issue #27 de lá).
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-09-26 15:59 (Horário Local)
+- **Agente**: Claude Code / Claude Opus 5.5 / Claude Code on the web
+- **Mensagem do Commit**: "docs(governance): regra 3 exporta conversa so quando o autor pedir"
+- **Arquivos afetados**: `AGENTS.md`, `NEWS.md`
+
 ## 2026-08-11 21:34 — Terceira rodada: a trava troca heuristica de texto por analise de tokens
 
 O CodeRabbit revisou a correcao anterior e mostrou que ela ainda era contornavel. O achado nao e mais um bypass isolado: e o **metodo** que estava errado.

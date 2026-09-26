@@ -4,7 +4,7 @@
 > 0. **Regra 0 (Arquivo Único):** `AGENTS.md` é o único arquivo de instruções deste repositório, e é o arquivo real. `CLAUDE.md` contém apenas `@AGENTS.md` — nunca escreva conteúdo nele. Não existem hard links, cópias espelhadas, `.github/copilot-instructions.md` nem `.cursor/rules/`: Claude Code, Copilot e Cursor leem o padrão aberto `AGENTS.md` diretamente.
 > 1. **Regra 1 (Auditoria):** Toda alteração é auditada. Execute `Rscript tools/validate-governance.R` antes de cada commit.
 > 2. **Regra 2 (Notícia do NEWS):** Qualquer modificação em código-fonte ou textos exige atualização co-commit no `NEWS.md` com bloco de Metadados de Execução.
-> 3. **Regra 3 (Exportação de Sessão):** Ao concluir uma tarefa, exporte o log da sessão via `Rscript tools/export_conversa.R <id> [slug]`.
+> 3. **Regra 3 (Exportação de Sessão, mudada em 2026-09-26):** exporte o log da sessão **só quando o autor pedir**, uma vez por sessão, via `Rscript tools/export_conversa.R <id> [slug]`. Nunca por iniciativa própria nem ao fim de toda tarefa: exports repetidos da mesma sessão viram lixo versionado.
 > 4. **Regra 4 (Proibição de Staging em Massa):** NUNCA execute `git add .` ou `git add -A`. Use staging cirúrgico especificando arquivos (`git add <file>`). Use `tools/git-wrapper.ps1` ou `tools/git-wrapper.sh` como proxy CLI.
 > 5. **Regra 5 (Convenção de Commits):** Commits devem seguir Conventional Commits (`<tipo>(<escopo>): <descrição>`).
 > 6. **Regra 6 (Sem Emojis):** Uso estritamente proibido de emojis em documentos de governança, NEWS.md, commit messages e código.
