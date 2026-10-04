@@ -1,7 +1,27 @@
 # NEWS — Decisões de Design e Evolução Metodológica
 
+## 2026-09-26 — Governança comum do ecossistema (v2026-09-26c)
+
+Aplicado o bloco de governança comum mantido no hub (`mancano-tales/mancano-repo-hub`, `tools/governanca-comum/`): planos com issue (`tools/plano_issue.py`), aprovação só no chat e no plano, mensagens de agentes como pedido, cabeçalho de agente, branch/PR opcionais, `NEWS.md` junto com a mudança, **datas sem hora** e **exportar conversa só quando o autor pedir**. O bloco fica entre marcadores no `AGENTS.md`; o que é específico deste repositório foi preservado.
+
+**Metadados de Execução**:
+- **Data**: 2026-09-26
+- **Agente**: Claude Code / Claude Opus 5.5 / Claude Code on the web, via `tools/sync_governanca.py` do hub
+- **Mensagem do Commit**: "docs(governance): governanca comum v2026-09-26c"
+- **Arquivos afetados**: AGENTS.md, CLAUDE.md, NEWS.md, tools/plano_issue.py, .claude/settings.json
+
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
+
+## 2026-09-26 15:59 — Regra 3: exportar a conversa só quando o autor pedir
+
+Decisão do autor (em chat, na sessão do hub): a Regra 3 do `AGENTS.md`, que mandava exportar o log da sessão ao concluir toda tarefa, passa a dizer **só quando o autor pedir**, uma vez por sessão. Como este é o template, a regra antiga nascia em todo repositório novo e gerava cópias repetidas da mesma conversa. A skill e o script continuam como estavam. Plano no `mancano-repo-hub`: `repo-governance/plan/2026-09-26_Plano_AGENTS_Enxutos_e_Export_Sob_Demanda.md` (issue #27 de lá).
+
+**Metadados de Execução**:
+- **Data/Hora**: 2026-09-26 15:59 (Horário Local)
+- **Agente**: Claude Code / Claude Opus 5.5 / Claude Code on the web
+- **Mensagem do Commit**: "docs(governance): regra 3 exporta conversa so quando o autor pedir"
+- **Arquivos afetados**: `AGENTS.md`, `NEWS.md`
 
 ## 2026-09-25 20:44 — Trava de git: quebra de linha, comando embrulhado e refspec com `+`
 
