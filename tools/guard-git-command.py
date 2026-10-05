@@ -154,6 +154,11 @@ def analisar(argv):
 
 def checar_configs(sub, args, configs, prof):
     """Force refspec e aliases vindos de `-c`/`--config-env`."""
+    checar_itens_config(configs)
+    expandir_alias(sub, args, configs, prof)
+
+
+def checar_itens_config(configs):
     for origem, item in configs:
         nome, _, valor = item.partition("=")
         nome = nome.lower()
@@ -170,7 +175,6 @@ def checar_configs(sub, args, configs, prof):
                 f"Refspec '{valor}' com '+' em '-c {nome}' e force-push.",
                 "Tire o '+'. Se o force for mesmo necessario, o autor humano executa manualmente.",
             )
-    expandir_alias(sub, args, configs, prof)
 
 
 def expandir_alias(sub, args, configs, prof):
@@ -178,10 +182,14 @@ def expandir_alias(sub, args, configs, prof):
     --hard`), como o git faz, e confere o comando final. Laco ou cadeia longa
     demais: falha fechada."""
     aliases = {}
-    for _origem, item in configs:
-        nome, _, valor = item.partition("=")
-        if nome.lower().startswith("alias."):
-            aliases[nome[len("alias."):].lower()] = valor.strip()
+
+    def registrar(itens):
+        for _origem, item in itens:
+            nome, _, valor = item.partition("=")
+            if nome.lower().startswith("alias."):
+                aliases[nome[len("alias."):].lower()] = valor.strip()
+
+    registrar(configs)
     vistos = set()
     while sub.lower() in aliases:
         if sub.lower() in vistos or len(vistos) >= MAX_ALIAS:
@@ -204,6 +212,9 @@ def expandir_alias(sub, args, configs, prof):
             )
         if not r:
             return
+        # A expansao pode trazer seus proprios `-c` (inclusive outro alias).
+        checar_itens_config(r[2])
+        registrar(r[2])
         sub, args = r[0], r[1]
         checar(sub, args)
 
@@ -346,6 +357,8 @@ def posicoes_de_comando(seg):
     for j, tok in enumerate(seg[:-1]):
         if tok in ("-exec", "-execdir", "-ok", "-okdir"):
             posicoes.add(j + 1)
+            if nome_base(seg[j + 1]) in PREFIXOS:  # `-exec env bash -c ...`
+                posicoes.update(range(j + 2, len(seg)))
     return sorted(posicoes)
 
 

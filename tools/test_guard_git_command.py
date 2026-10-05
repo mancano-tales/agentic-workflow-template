@@ -102,6 +102,10 @@ BLOQUEADOS = [
     "git -c remote.origin.push=+HEAD:main -c alias.p=push p origin",
     "echo 'git reset --hard' | cat | bash",
     "printf 'git add .' | tr a a | sed s/x/y/ | sh",
+    # Terceira revisao do Codex no PR #15 (2026-10-05).
+    "git -c alias.a='-c alias.b=\"reset --hard\" b' a",
+    "git -c alias.a='-c remote.origin.push=+HEAD:main push' a origin",
+    "find . -maxdepth 0 -exec env bash -c 'git reset --hard' \\;",
     # Casos que ja eram bloqueados (regressao).
     "git add .",
     "git add -A",
