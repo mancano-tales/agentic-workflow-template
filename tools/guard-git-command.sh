@@ -41,11 +41,14 @@ done
 # aberta), bloqueia qualquer invocação de git que contenha um verbo destrutivo
 # em qualquer posição. É deliberadamente grosseiro: pode gerar falso positivo,
 # mas o custo do falso positivo é uma mensagem, e o do falso negativo é perda
-# de trabalho.
+# de trabalho. Como casa contra o payload inteiro, quebra de linha e
+# `bash -c "..."` nao o contornam (a string interna esta no payload).
+# Limite: sem Python nao ha como decodificar `$'\x67it ...'` (aspas ANSI-C
+# com escapes), que esconde a palavra git; so a analise em Python cobre isso.
 PAYLOAD=$(cat)
 
 if echo "$PAYLOAD" | grep -q "git"; then
-  if echo "$PAYLOAD" | grep -qE '(clean[^|;&]*(-[A-Za-z]*f|--force)|reset[^|;&]*--hard|push[^|;&]*(-[A-Za-z]*f|--force)|add[[:space:]]+[^|;&]*(-[A-Za-z]*[Au]|--all|--update|--renormalize|\.|\*|:/)|(restore|checkout)[[:space:]]+[^|;&]*(\.|:/)([[:space:]]|"|$))'; then
+  if echo "$PAYLOAD" | grep -qE '(clean[^|;&]*(-[A-Za-z]*f|--force)|reset[^|;&]*--hard|push[^|;&]*(-[A-Za-z]*f|--force)|add[[:space:]]+[^|;&]*(-[A-Za-z]*[Au]|--all|--update|--renormalize|\.|\*|:/)|(restore|checkout)[[:space:]]+[^|;&]*(\.|:/)([[:space:]]|"|$)|push[^|;&]*[[:space:]]\+[^[:space:]]|branch[^|;&]*[[:space:]]-[A-Za-z]*D|(checkout|switch)[^|;&]*[[:space:]](-[A-Za-z]*f[A-Za-z]*([[:space:]]|"|$)|--force|--discard-changes)|\.push=\+)'; then
     echo "======================================================================" >&2
     echo " [BLOQUEADO — T-GIT-GUARD] Comando git potencialmente destrutivo." >&2
     echo "" >&2
