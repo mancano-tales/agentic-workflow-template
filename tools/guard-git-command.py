@@ -38,6 +38,15 @@
 #      palavras-chave (`if`, `then`...) sao atravessados ate o comando real.
 #   8. Shell sem `-c` le o script da entrada: `echo '...' | bash` e
 #      `bash <<< '...'` tem o texto analisado.
+# Segunda revisao do Codex (2026-10-05):
+#   9. Opcao longa de prefixo (`sudo --user ana bash -c ...`): depois de um
+#      prefixo, todo token seguinte conta como possivel comando (falha
+#      fechada, sem tabela de opcoes que envelhece).
+#  10. Aliases encadeados em `-c` (`a` -> `b` -> `reset --hard`) sao seguidos
+#      ate o fim, com teto e deteccao de laco; refspec `+` em `-c` bloqueia
+#      seja qual for o subcomando.
+#  11. Pipeline com varios estagios (`echo '...' | cat | bash`): todos os
+#      estagios que alimentam o shell sao analisados.
 #
 # Limite conhecido (documentado, nao escondido): depois de tokenizar, nao se
 # sabe mais se uma string veio entre aspas simples ou duplas. Por isso um
@@ -87,14 +96,8 @@ PALAVRAS_CHAVE = {"if", "then", "else", "elif", "do", "while", "until", "!", "{"
 # consomem um valor, para nao confundir o valor com o comando).
 PREFIXOS = {"env", "sudo", "doas", "nohup", "time", "command", "builtin", "exec",
             "nice", "stdbuf", "timeout", "xargs", "unbuffer"}
-PREFIXOS_COM_VALOR = {
-    "sudo": {"-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U"},
-    "doas": {"-u", "-C"},
-    "env": {"-u", "-C", "-S"},
-    "nice": {"-n"},
-    "timeout": {"-s", "-k"},
-    "xargs": {"-I", "-L", "-n", "-P", "-s", "-d", "-E", "-a"},
-}
+# Teto de expansao de aliases encadeados (`alias.a=b`, `alias.b=...`).
+MAX_ALIAS = 10
 
 
 def bloquear(titulo, alternativa):
@@ -161,26 +164,48 @@ def checar_configs(sub, args, configs, prof):
                 f"'--config-env {nome}' traz o valor de uma variavel de ambiente que a trava nao enxerga.",
                 "Passe o comando git explicitamente, sem alias nem refspec vindos de configuracao.",
             )
-        if eh_push and sub == "push" and valor.lstrip().startswith("+"):
+        # Qualquer subcomando: um alias pode virar `push` (`-c alias.p=push p`).
+        if eh_push and valor.lstrip().startswith("+"):
             bloquear(
                 f"Refspec '{valor}' com '+' em '-c {nome}' e force-push.",
                 "Tire o '+'. Se o force for mesmo necessario, o autor humano executa manualmente.",
             )
-        if eh_alias and nome[len("alias."):] == sub:
-            expansao = valor.strip()
-            if expansao.startswith("!"):
-                # Alias de shell: o git roda a string num shell.
-                examinar(expansao[1:], prof + 1)
-            else:
-                try:
-                    r = analisar(shlex.split(expansao) + list(args))
-                except ValueError:
-                    bloquear(
-                        f"Alias '{sub}' ilegivel: nao da para conferir o que ele executa.",
-                        "Rode o comando git diretamente, sem alias definido em '-c'.",
-                    )
-                if r:
-                    checar(r[0], r[1])
+    expandir_alias(sub, args, configs, prof)
+
+
+def expandir_alias(sub, args, configs, prof):
+    """Segue a cadeia de aliases definidos em `-c` (`a` -> `b` -> `reset
+    --hard`), como o git faz, e confere o comando final. Laco ou cadeia longa
+    demais: falha fechada."""
+    aliases = {}
+    for _origem, item in configs:
+        nome, _, valor = item.partition("=")
+        if nome.lower().startswith("alias."):
+            aliases[nome[len("alias."):].lower()] = valor.strip()
+    vistos = set()
+    while sub.lower() in aliases:
+        if sub.lower() in vistos or len(vistos) >= MAX_ALIAS:
+            bloquear(
+                f"Cadeia de aliases em '-c' com laco ou longa demais ('{sub}').",
+                "Rode o comando git diretamente, sem alias definido em '-c'.",
+            )
+        vistos.add(sub.lower())
+        expansao = aliases[sub.lower()]
+        if expansao.startswith("!"):
+            # Alias de shell: o git roda a string num shell.
+            examinar(expansao[1:], prof + 1)
+            return
+        try:
+            r = analisar(shlex.split(expansao) + list(args))
+        except ValueError:
+            bloquear(
+                f"Alias '{sub}' ilegivel: nao da para conferir o que ele executa.",
+                "Rode o comando git diretamente, sem alias definido em '-c'.",
+            )
+        if not r:
+            return
+        sub, args = r[0], r[1]
+        checar(sub, args)
 
 
 def checar(sub, args):
@@ -311,21 +336,13 @@ def posicoes_de_comando(seg):
             i += 1
             continue
         posicoes.add(i)
-        base = nome_base(tok)
-        if base not in PREFIXOS:
-            break
-        i += 1
-        # Opcoes do prefixo (e seus valores) ate o comando que ele executa.
-        while i < len(seg):
-            a = seg[i]
-            if a in PREFIXOS_COM_VALOR.get(base, ()):
-                i += 2
-            elif a.startswith("-") or (base == "env" and "=" in a) or (
-                base in ("timeout", "nice") and re.fullmatch(r"[0-9.]+[smhd]?", a)
-            ):
-                i += 1
-            else:
-                break
+        if nome_base(tok) in PREFIXOS:
+            # Depois de um prefixo, nao da para saber com seguranca quais
+            # tokens sao opcoes e valores dele (`sudo --user ana`, opcoes
+            # futuras...). Falha fechada: todo token seguinte conta como
+            # possivel comando. Custo: `sudo echo bash -c '...'` e bloqueado.
+            posicoes.update(range(i + 1, len(seg)))
+        break
     for j, tok in enumerate(seg[:-1]):
         if tok in ("-exec", "-execdir", "-ok", "-okdir"):
             posicoes.add(j + 1)
@@ -460,8 +477,12 @@ def examinar(comando, prof=0):
             for j, a in enumerate(resto[:-1]):
                 if a == "<<<":
                     examinar(resto[j + 1], prof + 1)
-            if n > 0 and seps[n] == "|":
-                for texto in segmentos[n - 1]:
+            # Todos os estagios do pipeline que alimentam o shell, nao so o
+            # anterior: `echo '...' | cat | bash` executa o texto do echo.
+            k = n
+            while k > 0 and seps[k] == "|":
+                k -= 1
+                for texto in segmentos[k]:
                     examinar(texto, prof + 1)
 
     for seg in segmentos:

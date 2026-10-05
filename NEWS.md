@@ -19,7 +19,9 @@ A revisao do Codex no PR #15 mediu tres desvios que a rodada anterior deixava pa
 
 Os tres cabecalhos desta branch perderam a hora, como pede a regra comum (so a data). O `CHANGELOG.md` volta ao da `main`: derivado do `git log`, ele e regenerado depois do merge, sobre a historia final, e nao sobre commits intermediarios da branch.
 
-Validado: `python tools/test_guard_git_command.py` com 94/94 casos (62 bloqueados, 32 liberados), 25 deles novos.
+Na segunda revisao, o Codex achou mais tres desvios, todos variacoes dos anteriores, e eles foram fechados: opcao longa de prefixo (`sudo --user ana bash -c ...`; depois de um prefixo, todo token seguinte passa a contar como possivel comando, em vez de uma tabela de opcoes), aliases encadeados em `-c` (seguidos ate o fim, com teto e deteccao de laco) e pipeline com varios estagios (`echo ... | cat | bash`). Refspec com `+` em `-c remote.*.push` bloqueia seja qual for o subcomando, porque um alias pode virar `push`.
+
+Validado: `python tools/test_guard_git_command.py` com 105/105 casos (71 bloqueados, 34 liberados), 36 deles novos nesta rodada.
 
 **Metadados de Execucao**:
 - **Data**: 2026-10-05

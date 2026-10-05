@@ -92,6 +92,16 @@ BLOQUEADOS = [
     "echo 'git reset --hard' | bash",
     "printf 'git clean -fdx' | sh -s",
     "bash <<< 'git add .'",
+    # Segunda revisao do Codex no PR #15 (2026-10-05).
+    "sudo --user ana bash -c 'git reset --hard'",
+    "env --chdir /tmp bash -c 'git clean -fdx'",
+    "xargs --max-args 1 sh -c 'git add .'",
+    "git -c alias.a=b -c alias.b='reset --hard' a",
+    "git -c alias.a=b -c alias.b='!git clean -fdx' a",
+    "git -c alias.a=a a",
+    "git -c remote.origin.push=+HEAD:main -c alias.p=push p origin",
+    "echo 'git reset --hard' | cat | bash",
+    "printf 'git add .' | tr a a | sed s/x/y/ | sh",
     # Casos que ja eram bloqueados (regressao).
     "git add .",
     "git add -A",
@@ -140,6 +150,8 @@ LIBERADOS = [
     "bash -c $'git status\\n'",
     "echo 'git status' | bash",
     "echo ok | bash -c 'git status'",
+    "git -c alias.st=status -c alias.s=st s",
+    "sudo -u ana git status",
 ]
 
 
