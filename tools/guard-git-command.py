@@ -27,6 +27,18 @@
 #   4. Descarte e delecao forcados: `git checkout -f`, `git switch
 #      --discard-changes|-f` e `git branch -D` (ou `-d` com `-f`).
 #
+# Revisao do Codex no PR #15 (2026-10-04) — mais quatro:
+#   5. Aspas ANSI-C: `bash -c $'git reset --hard'` (e `$'\x67it ...'`, que
+#      esconde a palavra git) e decodificado antes de tudo; `$"..."` idem.
+#   6. Configuracao na linha de comando: `git -c remote.origin.push=+HEAD:main
+#      push` forca sem `+` nos argumentos, e `-c alias.x='!git reset --hard' x`
+#      roda outro comando. Os valores de `-c`/`--config-env` sao conferidos.
+#   7. Embrulho so conta em posicao de comando: `echo bash -c '...'` nao
+#      executa nada e passa; `env`, `sudo`, `time`, `xargs`, `find -exec` e
+#      palavras-chave (`if`, `then`...) sao atravessados ate o comando real.
+#   8. Shell sem `-c` le o script da entrada: `echo '...' | bash` e
+#      `bash <<< '...'` tem o texto analisado.
+#
 # Limite conhecido (documentado, nao escondido): depois de tokenizar, nao se
 # sabe mais se uma string veio entre aspas simples ou duplas. Por isso um
 # `$(...)` ou crase DENTRO de aspas simples (literal, que o shell nao executa)
@@ -42,6 +54,7 @@
 # ==============================================================================
 
 import base64
+import codecs
 import json
 import re
 import shlex
@@ -67,6 +80,21 @@ MAX_DEPTH = 5
 
 SHELLS_C = {"bash", "sh", "zsh", "dash", "ksh"}
 POWERSHELLS = {"powershell", "pwsh"}
+
+# Palavras-chave do shell que podem preceder um comando no mesmo segmento.
+PALAVRAS_CHAVE = {"if", "then", "else", "elif", "do", "while", "until", "!", "{", "}"}
+# Prefixos que executam o comando que vem depois deles (e suas opcoes que
+# consomem um valor, para nao confundir o valor com o comando).
+PREFIXOS = {"env", "sudo", "doas", "nohup", "time", "command", "builtin", "exec",
+            "nice", "stdbuf", "timeout", "xargs", "unbuffer"}
+PREFIXOS_COM_VALOR = {
+    "sudo": {"-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U"},
+    "doas": {"-u", "-C"},
+    "env": {"-u", "-C", "-S"},
+    "nice": {"-n"},
+    "timeout": {"-s", "-k"},
+    "xargs": {"-I", "-L", "-n", "-P", "-s", "-d", "-E", "-a"},
+}
 
 
 def bloquear(titulo, alternativa):
@@ -96,19 +124,63 @@ def eh_separador(tok):
 
 
 def analisar(argv):
-    """Recebe os tokens DEPOIS de `git`; devolve (subcomando, args) ou None."""
-    i = 0
+    """Recebe os tokens DEPOIS de `git`; devolve (subcomando, args, configs) ou None.
+
+    `configs` sao os valores de `-c nome=valor` e `--config-env nome=VAR`: eles
+    podem forcar um push (`remote.<r>.push=+...`) ou definir um alias que roda
+    outro comando, entao nao basta pula-los."""
+    i, configs = 0, []
     while i < len(argv):
         tok = argv[i]
+        if tok.startswith("--config-env="):
+            configs.append(("env", tok.split("=", 1)[1]))
+            i += 1
+            continue
         if tok in VALUE_OPTS:
+            if tok in ("-c", "--config-env") and i + 1 < len(argv):
+                configs.append(("c" if tok == "-c" else "env", argv[i + 1]))
             i += 2
             continue
         if tok.startswith("-"):
             # Catch-all: qualquer opcao global, conhecida ou futura.
             i += 1
             continue
-        return tok, argv[i + 1:]
+        return tok, argv[i + 1:], configs
     return None
+
+
+def checar_configs(sub, args, configs, prof):
+    """Force refspec e aliases vindos de `-c`/`--config-env`."""
+    for origem, item in configs:
+        nome, _, valor = item.partition("=")
+        nome = nome.lower()
+        eh_push = re.fullmatch(r"remote\..+\.push", nome) is not None
+        eh_alias = nome.startswith("alias.")
+        if origem == "env" and (eh_push or eh_alias):
+            bloquear(
+                f"'--config-env {nome}' traz o valor de uma variavel de ambiente que a trava nao enxerga.",
+                "Passe o comando git explicitamente, sem alias nem refspec vindos de configuracao.",
+            )
+        if eh_push and sub == "push" and valor.lstrip().startswith("+"):
+            bloquear(
+                f"Refspec '{valor}' com '+' em '-c {nome}' e force-push.",
+                "Tire o '+'. Se o force for mesmo necessario, o autor humano executa manualmente.",
+            )
+        if eh_alias and nome[len("alias."):] == sub:
+            expansao = valor.strip()
+            if expansao.startswith("!"):
+                # Alias de shell: o git roda a string num shell.
+                examinar(expansao[1:], prof + 1)
+            else:
+                try:
+                    r = analisar(shlex.split(expansao) + list(args))
+                except ValueError:
+                    bloquear(
+                        f"Alias '{sub}' ilegivel: nao da para conferir o que ele executa.",
+                        "Rode o comando git diretamente, sem alias definido em '-c'.",
+                    )
+                if r:
+                    checar(r[0], r[1])
 
 
 def checar(sub, args):
@@ -223,10 +295,50 @@ def subcomandos_embutidos(tok):
     return internos
 
 
+def posicoes_de_comando(seg):
+    """Indices de `seg` em que o shell EXECUTA o token como comando.
+
+    Um `bash` que e so argumento (`echo bash -c '...'`) nao roda nada; o que
+    importa e o inicio do segmento, o que vem depois de atribuicoes (`FOO=1`),
+    de palavras-chave (`if`, `then`, `!`...) e de prefixos que executam o
+    resto da linha (`env`, `sudo`, `time`, `xargs`...), e o que vem depois de
+    `-exec` do `find`."""
+    posicoes = set()
+    i = 0
+    while i < len(seg):
+        tok = seg[i]
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", tok) or tok in PALAVRAS_CHAVE:
+            i += 1
+            continue
+        posicoes.add(i)
+        base = nome_base(tok)
+        if base not in PREFIXOS:
+            break
+        i += 1
+        # Opcoes do prefixo (e seus valores) ate o comando que ele executa.
+        while i < len(seg):
+            a = seg[i]
+            if a in PREFIXOS_COM_VALOR.get(base, ()):
+                i += 2
+            elif a.startswith("-") or (base == "env" and "=" in a) or (
+                base in ("timeout", "nice") and re.fullmatch(r"[0-9.]+[smhd]?", a)
+            ):
+                i += 1
+            else:
+                break
+    for j, tok in enumerate(seg[:-1]):
+        if tok in ("-exec", "-execdir", "-ok", "-okdir"):
+            posicoes.add(j + 1)
+    return sorted(posicoes)
+
+
 def desembrulhar(seg):
     """Devolve as strings de comando que `seg` executa por meio de outro shell."""
     internos = []
-    for idx, tok in enumerate(seg):
+    for tok in seg:
+        internos.extend(subcomandos_embutidos(tok))
+    for idx in posicoes_de_comando(seg):
+        tok = seg[idx]
         base = nome_base(tok)
         resto = seg[idx + 1:]
         if base in SHELLS_C:
@@ -260,7 +372,6 @@ def desembrulhar(seg):
                     break
         elif base == "eval":
             internos.append(" ".join(resto))
-        internos.extend(subcomandos_embutidos(tok))
     return internos
 
 
@@ -275,7 +386,31 @@ def menciona_git(comando):
     return "git" in baixo or "powershell" in baixo or "pwsh" in baixo
 
 
+def decodificar_aspas_especiais(comando):
+    """`$'...'` (ANSI-C) vira o texto que o bash executaria, entre aspas
+    simples; `$"..."` (localizacao) vira aspas duplas comuns. Sem isso o shlex
+    entrega `$git reset --hard` e a trava nao reconhece o `git`. Roda antes do
+    atalho `menciona_git`, porque `$'\\x67it'` esconde a palavra."""
+
+    def ansi_c(m):
+        try:
+            texto = codecs.decode(
+                m.group(1).encode("latin-1", "backslashreplace"), "unicode_escape"
+            )
+        except Exception:
+            bloquear(
+                "Aspas ANSI-C ($'...') ilegiveis: nao da para conferir o que executam.",
+                "Escreva o comando em texto claro.",
+            )
+        return shlex.quote(texto)
+
+    comando = re.sub(r"\$'((?:[^'\\]|\\.)*)'", ansi_c, comando, flags=re.S)
+    return comando.replace('$"', '"')
+
+
 def examinar(comando, prof=0):
+    if "$'" in comando or '$"' in comando:
+        comando = decodificar_aspas_especiais(comando)
     if not menciona_git(comando):
         return
     if prof > MAX_DEPTH:
@@ -298,16 +433,36 @@ def examinar(comando, prof=0):
     for interno in re.findall(r"`([^`]*)`", comando):
         examinar(interno, prof + 1)
 
-    segmentos, atual = [], []
+    segmentos, atual, sep = [], [], ""
+    seps = []  # separador que precede cada segmento
     for tok in tokens:
         if eh_separador(tok):
             if atual:
                 segmentos.append(atual)
-            atual = []
+                seps.append(sep)
+            atual, sep = [], tok
         else:
             atual.append(tok)
     if atual:
         segmentos.append(atual)
+        seps.append(sep)
+
+    # Shell sem `-c` le o script da entrada: `echo 'git reset --hard' | bash`
+    # e `bash <<< 'git add .'` executam o texto que chega por pipe/here-string.
+    for n, seg in enumerate(segmentos):
+        for idx in posicoes_de_comando(seg):
+            if nome_base(seg[idx]) not in SHELLS_C | POWERSHELLS:
+                continue
+            resto = seg[idx + 1:]
+            if any(re.match(r"^-[A-Za-z]*c[A-Za-z]*$", a) or a.lower().startswith("-com")
+                   for a in resto):
+                continue  # -c/-Command: tratado em desembrulhar
+            for j, a in enumerate(resto[:-1]):
+                if a == "<<<":
+                    examinar(resto[j + 1], prof + 1)
+            if n > 0 and seps[n] == "|":
+                for texto in segmentos[n - 1]:
+                    examinar(texto, prof + 1)
 
     for seg in segmentos:
         # TODO `git` do segmento, nao so o primeiro: um comentario `#` pode
@@ -316,6 +471,7 @@ def examinar(comando, prof=0):
             if eh_git(t):
                 r = analisar(seg[idx + 1:])
                 if r:
+                    checar_configs(r[0], r[1], r[2], prof)
                     checar(r[0], r[1])
         for interno in desembrulhar(seg):
             examinar(interno, prof + 1)

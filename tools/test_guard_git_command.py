@@ -70,6 +70,28 @@ BLOQUEADOS = [
     "git branch -D velha",
     "git branch -d -f velha",
     "git branch --delete --force velha",
+    # Revisao do Codex no PR #15 (2026-10-04).
+    # Aspas ANSI-C e de localizacao: o bash executa o conteudo decodificado.
+    "bash -c $'git reset --hard'",
+    "bash -c $'\\x67it clean -fdx'",
+    "bash -c $'git status\\ngit reset --hard'",
+    'bash -c $"git reset --hard"',
+    # Force refspec e alias vindos de `git -c`.
+    "git -c remote.origin.push=+HEAD:main push origin",
+    "git -c alias.limpa='!git clean -fdx' limpa",
+    "git -c alias.zera='reset --hard' zera",
+    "git --config-env=alias.x=VAR x",
+    # Embrulho depois de prefixos que executam o que vem a seguir.
+    "env FOO=1 bash -c 'git reset --hard'",
+    "sudo -u ana sh -c 'git clean -fdx'",
+    "time bash -c 'git push --force'",
+    "xargs -0 sh -c 'git add .'",
+    "find . -name x -exec sh -c 'git reset --hard' \\;",
+    "if true; then bash -c 'git add -A'; fi",
+    # Shell sem -c le o script por pipe ou here-string.
+    "echo 'git reset --hard' | bash",
+    "printf 'git clean -fdx' | sh -s",
+    "bash <<< 'git add .'",
     # Casos que ja eram bloqueados (regressao).
     "git add .",
     "git add -A",
@@ -109,6 +131,15 @@ LIBERADOS = [
     "ls -la",
     "echo 'aspas desbalanceadas",  # sem git: nao e assunto da trava
     'bash -c "echo it\'s"',  # string interna sem git, mesmo mal formada
+    # Revisao do Codex no PR #15: `bash` como argumento nao executa nada.
+    "echo bash -c 'git reset --hard'",
+    "grep -n \"bash -c 'git add .'\" README.md",
+    "git -c user.name=Fulano commit -m ok",
+    "git -c remote.origin.push=refs/heads/main:refs/heads/main push origin",
+    "git -c alias.st=status st",
+    "bash -c $'git status\\n'",
+    "echo 'git status' | bash",
+    "echo ok | bash -c 'git status'",
 ]
 
 

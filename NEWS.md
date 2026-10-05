@@ -13,6 +13,20 @@ Aplicado o bloco de governança comum mantido no hub (`mancano-tales/mancano-rep
 > Entrada mais recente no topo.
 > **Convenção de timestamp**: Todas as datas em cabeçalhos (## YYYY-MM-DD HH:MM) e no campo Data/Hora dos metadados DEVEM incluir hora e minuto no fuso local. Nunca use datas isoladas.
 
+## 2026-10-05 — Trava de git: revisao do Codex no PR #15
+
+A revisao do Codex no PR #15 mediu tres desvios que a rodada anterior deixava passar e um falso positivo. (1) Aspas ANSI-C: o shlex entrega `$git reset --hard` para `bash -c $'git reset --hard'`, e `$'git ...'` esconde ate a palavra git; agora `$'...'` e decodificado antes de qualquer analise e `$"..."` vira aspas comuns. (2) `git -c remote.origin.push=+HEAD:main push origin` forca sem `+` nos argumentos; os valores de `-c` e `--config-env` passam a ser conferidos, inclusive aliases (`-c alias.x='!git reset --hard' x` e `-c alias.x='reset --hard' x`). (3) Falso positivo: `echo bash -c '...'` era bloqueado porque qualquer token `bash` contava; o embrulho agora so conta em posicao de comando, atravessando `env`, `sudo`, `time`, `xargs`, `find -exec` e palavras-chave do shell. Na mesma familia, fechado tambem o shell que le o script pela entrada (`echo '...' | bash`, `bash <<< '...'`).
+
+Os tres cabecalhos desta branch perderam a hora, como pede a regra comum (so a data). O `CHANGELOG.md` volta ao da `main`: derivado do `git log`, ele e regenerado depois do merge, sobre a historia final, e nao sobre commits intermediarios da branch.
+
+Validado: `python tools/test_guard_git_command.py` com 94/94 casos (62 bloqueados, 32 liberados), 25 deles novos.
+
+**Metadados de Execucao**:
+- **Data**: 2026-10-05
+- **Agente**: Claude Code / Claude Opus 5.5 / desktop
+- **Mensagem do Commit**: "fix(guard): aspas ANSI-C, -c do git, posicao de comando e shell lendo a entrada"
+- **Arquivos afetados**: `tools/guard-git-command.py`, `tools/guard-git-command.sh`, `tools/test_guard_git_command.py`, `NEWS.md`, `CHANGELOG.md`
+
 ## 2026-09-26 15:59 — Regra 3: exportar a conversa só quando o autor pedir
 
 Decisão do autor (em chat, na sessão do hub): a Regra 3 do `AGENTS.md`, que mandava exportar o log da sessão ao concluir toda tarefa, passa a dizer **só quando o autor pedir**, uma vez por sessão. Como este é o template, a regra antiga nascia em todo repositório novo e gerava cópias repetidas da mesma conversa. A skill e o script continuam como estavam. Plano no `mancano-repo-hub`: `repo-governance/plan/2026-09-26_Plano_AGENTS_Enxutos_e_Export_Sob_Demanda.md` (issue #27 de lá).
@@ -23,7 +37,7 @@ Decisão do autor (em chat, na sessão do hub): a Regra 3 do `AGENTS.md`, que ma
 - **Mensagem do Commit**: "docs(governance): regra 3 exporta conversa so quando o autor pedir"
 - **Arquivos afetados**: `AGENTS.md`, `NEWS.md`
 
-## 2026-09-25 20:44 — Trava de git: quebra de linha, comando embrulhado e refspec com `+`
+## 2026-09-25 — Trava de git: quebra de linha, comando embrulhado e refspec com `+`
 
 A mesma revisao pos-merge mediu quatro comandos destrutivos que o `tools/guard-git-command.py` deixava passar com rc=0: `git status` + quebra de linha + `git clean -fdx`; o mesmo com `git add .`; `bash -c "git reset --hard"`; e `git push origin +main`.
 
@@ -36,12 +50,12 @@ A mesma revisao pos-merge mediu quatro comandos destrutivos que o `tools/guard-g
 **Teste automatizado novo**: `tools/test_guard_git_command.py`, so biblioteca padrao (`python tools/test_guard_git_command.py`). Resultado: 69/69 — 45 bloqueados (os quatro do achado, as variantes de separador e embrulho, as formas novas e as ja cobertas, como regressao) e 24 liberados (`git add arquivo.R`, `git status`, `git log`, `git push origin minha-branch`, a mensagem com `git add .` dentro, `bash -c "git status"`, entre outros).
 
 **Metadados de Execucao**:
-- **Data/Hora**: 2026-09-25 20:44 (Horario de Brasilia)
+- **Data**: 2026-09-25
 - **Agente**: Claude Opus 5.5 / claude-opus-5-5 / Claude Code (subagente)
 - **Mensagem do Commit**: "fix(guard): fecha bypass por quebra de linha, shell embrulhado e refspec"
 - **Arquivos afetados**: `tools/guard-git-command.py`, `tools/guard-git-command.sh`, `tools/test_guard_git_command.py`, `NEWS.md`, `CHANGELOG.md`
 
-## 2026-09-25 20:44 — commit-msg volta ao validador completo da main pre-PR #12
+## 2026-09-25 — commit-msg volta ao validador completo da main pre-PR #12
 
 A revisao pos-merge do PR #12 mediu que o `hooks/commit-msg` do PR regrediu em relacao ao que a `main` tinha antes dele (`a73862f`). A versao do PR so acrescentou tipos, mas foi escrita do zero e perdeu quatro garantias:
 
@@ -57,7 +71,7 @@ Verificado com 21 mensagens em arquivos temporarios: 15 validas passam (incluind
 Efeito colateral a conhecer: dos 60 cabecalhos mais recentes do historico, 29 passam dos 72 caracteres e seriam recusados hoje, entre eles o proprio squash do PR #12 (87 caracteres, porque o GitHub acrescenta ` (#12)`). Sao anteriores ao hook ou vieram de merge pelo GitHub, que nao roda hook local; nao ha o que corrigir no historico.
 
 **Metadados de Execucao**:
-- **Data/Hora**: 2026-09-25 20:44 (Horario de Brasilia)
+- **Data**: 2026-09-25
 - **Agente**: Claude Opus 5.5 / claude-opus-5-5 / Claude Code (subagente)
 - **Mensagem do Commit**: "fix(hooks): restaura o commit-msg completo e acrescenta os tipos novos"
 - **Arquivos afetados**: `hooks/commit-msg`, `NEWS.md`
