@@ -23,7 +23,7 @@ Decisão do autor (em chat, na sessão do hub): a Regra 3 do `AGENTS.md`, que ma
 - **Mensagem do Commit**: "docs(governance): regra 3 exporta conversa so quando o autor pedir"
 - **Arquivos afetados**: `AGENTS.md`, `NEWS.md`
 
-## 2026-09-25 18:06 — `export_conversa.R`: caminho entra na regex escapado
+## 2026-09-25 — `export_conversa.R`: caminho entra na regex escapado
 
 A revisão do Copilot no PR #14 apontou que `padrao_de_caminho()` montava a regex com o caminho da raiz do repo e da pasta do usuário **sem escapar metacaracteres**. Reproduzido no R: com a correção das 10:25, 5 de 11 casos passavam. Pastas com `(`, `+` ou `[` — padrão do OneDrive no Windows, como `OneDrive - USP (Pessoal)` — não casavam, e o caminho absoluto **vazava em silêncio** no export, para ser barrado depois pela T1 no último passo da `close-task`. Um `(` sem par abortava o PCRE. O `.` de `mancano-tales.github.io` casava qualquer caractere.
 
@@ -34,12 +34,12 @@ Também da revisão: os comentários dos dois scripts e a tabela § Configuraç�
 Fica em aberto, fora deste PR: cada renomeação da pasta de governança num consumidor exige mexer na lista de candidatos do template, o que contraria o `PRINCIPLES.md` §3. O caminho definitivo é o script ler o nome da configuração do próprio projeto.
 
 **Metadados de Execução**:
-- **Data/Hora**: 2026-09-25 18:06 (Horário de Brasília)
+- **Data**: 2026-09-25
 - **Agente**: Claude Code (web)
 - **Mensagem do Commit**: "fix(tools): escapa metacaracteres do caminho na regex do export"
 - **Arquivos afetados**: `tools/export_conversa.R`, `tools/validate-governance.R`, `AGENTS.md`, `NEWS.md`
 
-## 2026-09-25 10:25 — `export_conversa.R`: sanitização de caminhos quebrava no Windows
+## 2026-09-25 — `export_conversa.R`: sanitização de caminhos quebrava no Windows
 
 O primeiro export real no Windows (no `mancano-repo-hub`) abortou em `sanitizar_caminhos()` com erro do PCRE: *missing terminating ] for character class*. Havia dois defeitos em `padrao_de_caminho()`:
 
@@ -49,12 +49,12 @@ O primeiro export real no Windows (no `mancano-repo-hub`) abortou em `sanitizar_
 Aproveitando a correção, o separador virou `[/\\]+`, que também pega a barra dupla escapada que aparece no JSON das chamadas de ferramenta (`C:\\\\Users\\\\…`). Sem isso, esses caminhos vazavam no export. Testado nas quatro grafias (`C:/x`, `c:\x`, `/c/x` e a escapada do JSON), e um caminho de fora não é tocado. O export real de uma conversa de 425 KB saiu sem nenhum caminho absoluto.
 
 **Metadados de Execucao**:
-- **Data/Hora**: 2026-09-25 10:25 (Horario de Brasilia)
+- **Data**: 2026-09-25
 - **Agente**: Claude Opus 5.5 / claude-opus-5-5 / Claude Code (desktop)
 - **Mensagem do Commit**: "fix(tools): regex de sanitizacao de caminhos no Windows"
 - **Arquivos afetados**: `tools/export_conversa.R`, `NEWS.md`
 
-## 2026-09-25 02:08 — Devolucoes do mancano-repo-hub: `repo-governance` e `%||%` para R < 4.4
+## 2026-09-25 — Devolucoes do mancano-repo-hub: `repo-governance` e `%||%` para R < 4.4
 
 Ao importar as ferramentas do PR #12 para a raiz do ecossistema (`mancano-repo-hub`), duas coisas precisaram de ajuste local. Voltam aqui para as copias nao divergirem.
 
@@ -65,7 +65,7 @@ Ao importar as ferramentas do PR #12 para a raiz do ecossistema (`mancano-repo-h
 Verificado: os tres scripts fazem parse; `render-changelog.R` gera 36 entradas neste repo; a deteccao devolve `repo-governance` na raiz do hub.
 
 **Metadados de Execucao**:
-- **Data/Hora**: 2026-09-25 02:08 (Horario de Brasilia)
+- **Data**: 2026-09-25
 - **Agente**: Claude Opus 5.5 / claude-opus-5-5 / Claude Code (desktop)
 - **Mensagem do Commit**: "fix(tools): repo-governance nos candidatos e %||% para R < 4.4"
 - **Arquivos afetados**: `tools/export_conversa.R`, `tools/validate-governance.R`, `tools/render-changelog.R`, `NEWS.md`
