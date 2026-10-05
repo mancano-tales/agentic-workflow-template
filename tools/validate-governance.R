@@ -19,7 +19,8 @@ CWD <- getwd()
 
 # ── Diretório de governança (indireção) ───────────────────────────────────────
 # O nome do diretório de governança varia entre os repositórios que usam este
-# template: "0-meta" na raiz MancanoSync e no repo `skills`; "9-vers" nos repos
+# template: "0-meta" no repo `skills`; "repo-governance" na raiz do
+# mancano-repo-hub (era "0-meta" ate 2026-09-24); "9-vers" nos repos
 # de pesquisa, onde é o slot 9 de uma taxonomia numerada VIVA (2-set/, 3-texts/,
 # 4-DA-Code/, 6-images-tables/, 9-vers/) e portanto está correto ali.
 #
@@ -37,7 +38,9 @@ CWD <- getwd()
 # A detecção é o que garante um default correto por omissão: sem ela, um repo
 # "0-meta" que rode o script sem setar a env var opera sobre a pasta errada.
 # Ver 9-vers/plan/2026-07-27_Plano_Migracao_AGENTS-md_e_Indirecao_Governanca.md
-GOV_DIR_CANDIDATOS <- c("0-meta", "9-vers")
+# "repo-governance" (2026-09-25): nome da pasta na raiz do mancano-repo-hub. Vai
+# no fim da lista para nao mudar o fallback dos repos que ja usam o template.
+GOV_DIR_CANDIDATOS <- c("0-meta", "9-vers", "repo-governance")
 GOV_DIR <- Sys.getenv("GOV_DIR", unset = "")
 if (!nzchar(GOV_DIR)) {
   GOV_DIR <- Find(function(d) dir.exists(file.path(CWD, d)), GOV_DIR_CANDIDATOS)

@@ -35,7 +35,8 @@ PASTA_ANTIGRAVITY <- file.path(
 )
 # ── Diretório de governança (indireção) ───────────────────────────────────────
 # O nome do diretório de governança varia entre os repositórios que usam este
-# template: "0-meta" na raiz MancanoSync e no repo `skills`; "9-vers" nos repos
+# template: "0-meta" no repo `skills`; "repo-governance" na raiz do
+# mancano-repo-hub (era "0-meta" ate 2026-09-24); "9-vers" nos repos
 # de pesquisa, onde é o slot 9 de uma taxonomia numerada VIVA (2-set/, 3-texts/,
 # 4-DA-Code/, 6-images-tables/, 9-vers/) e portanto está correto ali.
 #
@@ -54,7 +55,9 @@ PASTA_ANTIGRAVITY <- file.path(
 # "0-meta" que rode o script sem setar a env var volta a escrever na pasta
 # errada — exatamente o modo de falha acima.
 # Ver 9-vers/plan/2026-07-27_Plano_Migracao_AGENTS-md_e_Indirecao_Governanca.md
-GOV_DIR_CANDIDATOS <- c("0-meta", "9-vers")
+# "repo-governance" (2026-09-25): nome da pasta na raiz do mancano-repo-hub. Vai
+# no fim da lista para nao mudar o fallback dos repos que ja usam o template.
+GOV_DIR_CANDIDATOS <- c("0-meta", "9-vers", "repo-governance")
 GOV_DIR <- Sys.getenv("GOV_DIR", unset = "")
 if (!nzchar(GOV_DIR)) {
   GOV_DIR <- Find(function(d) dir.exists(file.path(getwd(), d)), GOV_DIR_CANDIDATOS)
@@ -83,9 +86,21 @@ DIR_USUARIO <- normalizePath(
 
 # Aceita as tres grafias que aparecem na pratica: "C:/x", "C:\x" e "/c/x" (Git
 # Bash), com a letra da unidade em qualquer caixa.
+#
+# Cada segmento do caminho entra na regex ESCAPADO: um caminho e texto literal,
+# e pastas comuns no Windows tem metacaracteres ("OneDrive - USP (Pessoal)",
+# "proj+v2", "dados[2026]"). Sem o escape, esses caminhos nao casavam e vazavam
+# em silencio no export; um "(" sem par abortava o PCRE (achado do Copilot no
+# PR #14, reproduzido em 2026-09-25). O separador `[/\\]+` pega tambem a barra
+# dupla escapada que aparece no JSON das chamadas de ferramenta.
+escapar_regex <- function(x) gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", x)
+
 padrao_de_caminho <- function(caminho) {
-  p <- gsub("^([A-Za-z]):", "(?:\1:|/\1)", caminho)
-  gsub("/", "[/\\\\]", p)
+  unidade <- regmatches(caminho, regexpr("^[A-Za-z](?=:)", caminho, perl = TRUE))
+  resto <- sub("^[A-Za-z]:", "", caminho)
+  segmentos <- strsplit(resto, "/", fixed = TRUE)[[1]]
+  corpo <- paste(escapar_regex(segmentos), collapse = "[/\\\\]+")
+  if (length(unidade)) paste0("(?:", unidade, ":|/", unidade, ")", corpo) else corpo
 }
 
 sanitizar_caminhos <- function(x) {
